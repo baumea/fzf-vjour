@@ -250,7 +250,6 @@ __filepath_to_searchline() {
 __lines() {
   # Collect all files
   FILES_TMP=$(mktemp)
-  trap 'rm -f "$FILES_TMP"' EXIT
   find "$ROOT" -type f -name '*.ics' >"$FILES_TMP"
 
   # Compute max length of basenames
@@ -270,6 +269,7 @@ __lines() {
   # Sort and cut off irreleant part
   lines=$(echo "$lines" | sort -g -r | cut -d ':' -f 2-)
 
+  rm "$FILES_TMP"
   echo "$lines"
 }
 
@@ -304,9 +304,8 @@ if [ "${1:-}" = "--new" ]; then
     return 1
   fi
   #
-  TMPFILE="$(mktemp).md"
+  TMPFILE=$(mktemp --suffix='.md')
   SHAFILE="$TMPFILE.sha"
-  trap 'rm -f "$TMPFILE" "$SHAFILE"' EXIT
   {
     echo "::: Keep this line if you want to add a **JOURNAL** entry (associated to today), else we will add a **NOTE**"
     echo "# <write summary here>"
@@ -321,9 +320,9 @@ if [ "${1:-}" = "--new" ]; then
   # Update if changes are detected
   if ! sha1sum -c "$SHAFILE" >/dev/null 2>&1; then
     vjfile_tmp="$TMPFILE.ics"
-    trap 'rm -f "$vjfile_tmp"' EXIT
-    __vjournalnew "$uuid_new" <"$TMPFILE" >"$vjfile_tmp" && mv "$vjfile_tmp" "$vjfile_new"
+    __vjournalnew "$uuid_new" <"$TMPFILE" >"$vjfile_tmp" && mv "$vjfile_tmp" "$vjfile_new" || rm "$vjfile_tmp"
   fi
+  rm "$TMPFILE" "$SHAFILE"
 fi
 if [ "${1:-}" = "--reload" ]; then
   __lines
@@ -350,14 +349,12 @@ if [ ! -f "$VJ_FILE" ]; then
 fi
 
 # Parse vjournal file and save as json
-TMPJSON="$(mktemp).json"
-trap 'rm -f "$TMPJSON"' EXIT
+TMPJSON=$(mktemp)
 __vjournal2json <"$VJ_FILE" >"$TMPJSON"
 
 # Prepare file to be edited
-TMPFILE="$(mktemp).md"
+TMPFILE=$(mktemp --suffix='.md')
 SHAFILE="$TMPFILE.sha"
-trap 'rm -f "$TMPFILE" "$SHAFILE"' EXIT
 SUMMARY=$(jq -r '.summary' "$TMPJSON")
 CATEGORIES=$(jq -r '.categories | join(",")' "$TMPJSON")
 {
@@ -366,6 +363,7 @@ CATEGORIES=$(jq -r '.categories | join(",")' "$TMPJSON")
   echo ""
   jq -r '.description' "$TMPJSON"
 } >"$TMPFILE"
+rm "$TMPJSON"
 sha1sum "$TMPFILE" >"$SHAFILE"
 
 # Open in editor
@@ -375,8 +373,8 @@ $EDITOR "$TMPFILE"
 if ! sha1sum -c "$SHAFILE" >/dev/null 2>&1; then
   echo "Uh... chages detected!"
   vj_file_new="$TMPFILE.ics"
-  trap 'rm -f "$vj_file_new"' EXIT
-  __vjournalupdate "$VJ_FILE" <"$TMPFILE" >"$vj_file_new" && mv "$vj_file_new" "$VJ_FILE"
+  __vjournalupdate "$VJ_FILE" <"$TMPFILE" >"$vj_file_new" && mv "$vj_file_new" "$VJ_FILE" || rm "$vj_file_new"
 fi
+rm "$TMPFILE" "$SHAFILE"
 
 exec "$0"
