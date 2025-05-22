@@ -1,0 +1,382 @@
+#!/bin/sh
+
+set -eu
+
+# Read configuration
+CONFIGFILE="$HOME/.config/fzf-vjour/config.yaml"
+if [ ! -e "$CONFIGFILE" ]; then
+  echo "Config file '$CONFIGFILE' not found"
+  exit 1
+fi
+ROOT=$(yq '.datadir' <"$CONFIGFILE")
+ROOT=$(eval "echo $ROOT")
+if [ ! -d "$ROOT" ]; then
+  echo "Root directory not set or wrongly set"
+  exit 1
+fi
+SED_COLLECTIONNAMES_TO_LABELS=$(
+  printf "sed "
+  yq '.collections[] | "s|/*" + .name + "/*|:" + .label + "\ |"' <"$CONFIGFILE" |
+    xargs printf "-e \"%s\" "
+)
+SED_COLLECTIONLABELS_TO_NAMES=$(
+  printf "sed "
+  yq '.collections[] | "s|\ *" + .label + "\ *|/" + .name + "/|"' <"$CONFIGFILE" |
+    xargs printf "-e \"%s\" "
+)
+COLLECTION_LABEL_MAX_LEN=$(yq '[.collections[].label | length] | max' <"$CONFIGFILE")
+LABLES=$(yq '.collections[].label' <"$CONFIGFILE")
+SYNC_CMD=$(yq '.sync_cmd' <"$CONFIGFILE")
+
+__vjournalnew() {
+  python3 -c '
+import sys
+from datetime import date, datetime
+from icalendar.cal import Calendar, Journal
+
+if not len(sys.argv) == 2:
+    print("Pass uid as first argument!", file=sys.stderr)
+    sys.exit(1)
+
+UID = sys.argv[1]
+ical = Calendar()
+j = Journal()
+
+isnote = True
+line = sys.stdin.readline().strip()
+if line[:4] == "::: ":
+    isnote = False
+    line = sys.stdin.readline().strip()
+
+if not line[:2] == "# ":
+    print("Error: Summary line is corrupt!", file=sys.stderr)
+    sys.exit(1)
+summary = line[2:]
+
+line = sys.stdin.readline().strip()
+if not line[:2] == "> " and not line == ">":
+    print("Error: Categories line is corrupt!", file=sys.stderr)
+    sys.exit(1)
+categories = line[2:].split(",")
+
+line = sys.stdin.readline().strip()
+if not line == "":
+    print("Error: Missing separating line!", file=sys.stderr)
+    sys.exit(1)
+
+description = sys.stdin.read()
+
+# Create ical
+j["SUMMARY"] = summary
+j.categories = categories
+j["DESCRIPTION"] = description
+j.LAST_MODIFIED = datetime.utcnow()
+j.DTSTAMP = datetime.utcnow()
+j["UID"] = UID
+j["SEQUENCE"] = 1
+j["STATUS"] = "FINAL"
+if not isnote:
+    j.DTSTART = date.today()
+ical.add_component(j)
+ical["VERSION"] = "2.0"
+ical["PRODID"] = "vjournew/basic"
+
+# Print
+print(ical.to_ical().decode().replace("\r\n", "\n"))' "$@"
+}
+__vjournalupdate() {
+  python3 -c '
+import sys
+from datetime import datetime
+from icalendar.cal import Journal
+
+if not len(sys.argv) == 2:
+    print("Pass ical file as first argument!", file=sys.stderr)
+    sys.exit(1)
+
+with open(sys.argv[1], "r") as f:
+    try:
+        ical = Journal.from_ical(f.read())
+    except Exception as e:
+        print(f"Failed to read vjournal file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+jlist = [component for component in ical.walk("VJOURNAL")]
+if len(jlist) == 0:
+    print("ical file is not a VJOURNAL", file=sys.stderr)
+    sys.exit(1)
+j = jlist[0]
+
+line = sys.stdin.readline().strip()
+if not line[:2] == "# ":
+    print("Error: Summary line is corrupt!", file=sys.stderr)
+    sys.exit(1)
+summary = line[2:]
+
+line = sys.stdin.readline().strip()
+if not line[:2] == "> " and not line == ">":
+    print("Error: Categories line is corrupt!", file=sys.stderr)
+    sys.exit(1)
+categories = line[2:].split(",")
+
+line = sys.stdin.readline().strip()
+if not line == "":
+    print("Error: Missing separating line!", file=sys.stderr)
+    sys.exit(1)
+
+description = sys.stdin.read()
+
+# Update ical
+j["SUMMARY"] = summary
+j.categories = categories
+j["DESCRIPTION"] = description
+j.LAST_MODIFIED = datetime.utcnow()
+
+# Print
+print(ical.to_ical().decode().replace("\r\n", "\n"))
+' "$@"
+}
+
+__vjournal2json() {
+  python3 -c '
+import sys
+import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from icalendar.cal import Journal
+
+input_data = sys.stdin.read()
+try:
+    ical = Journal.from_ical(input_data)
+except Exception as e:
+    print(f"Failed to read vjournal file: {e}", file=sys.stderr)
+    sys.exit(1)
+
+jlist = [component for component in ical.walk("VJOURNAL")]
+if len(jlist) == 0:
+    sys.exit(0)
+
+j = jlist[0]
+
+local_tz = ZoneInfo("localtime")
+data = {
+    "summary": j.get("SUMMARY"),
+    "description": j.get("DESCRIPTION"),
+    "categories": j.categories,
+    "class": j.get("CLASS"),
+    "created": str(j.DTSTAMP.astimezone(local_tz)),
+    "last_modified": str(j.LAST_MODIFIED.astimezone(local_tz)),
+    "start": str(
+        j.DTSTART.astimezone(local_tz)
+        if isinstance(j.DTSTART, datetime)
+        else j.DTSTART or ""
+    ),
+}
+
+print(json.dumps(data))'
+}
+# Process each file
+# This function takes two arguments:
+#
+# @param string: Path to ics file
+# @param string: Maximum length of filenames (for padding purposes)
+__filepath_to_searchline() {
+  filepath="$1"
+  maxlen="$2"
+  totallen=$((maxlen + ${#ROOT}))
+  filepathpad=$(printf "%-${totallen}s" "$filepath")
+
+  # Color support
+  GREEN=$(printf '\033[1;32m')
+  WHITE=$(printf '\033[1;97m')
+  FAINT=$(printf '\033[2m')
+  OFF=$(printf '\033[m')
+
+  # Parse file
+  summary=""
+  categories=""
+  dtstamp=""
+  dtstart=""
+  while IFS= read -r line; do
+    case "$line" in
+    SUMMARY:*)
+      summary="${line#SUMMARY:}"
+      ;;
+    CATEGORIES:*)
+      categories="${line#CATEGORIES:}"
+      ;;
+    DTSTAMP:*)
+      dtstamp="${line#DTSTAMP:}"
+      ;;
+    DTSTART*:[0-9]*)
+      dtstart=$(echo "$line" | grep -oE '[0-9]{8}')
+      ;;
+    esac
+    if [ -n "$summary" ] && [ -n "$categories" ] && [ -n "$dtstamp" ] && [ -n "$dtstart" ]; then
+      break
+    fi
+  done <"$filepath"
+
+  # Parse date
+  if [ -n "$dtstart" ]; then
+    date_target=$(date -d "$dtstart" +%s)
+    date_today=$(date +%s)
+    date_delta=$(((date_target - date_today) / 86400))
+    date_expr=$date_delta
+    if [ "$date_delta" -eq 0 ]; then
+      date_expr="today"
+    elif [ "$date_delta" -eq -1 ]; then
+      date_expr="yesterday"
+    elif [ "$date_delta" -eq 1 ]; then
+      date_expr="tomorrow"
+    elif [ "$date_delta" -lt -1 ] && [ "$date_delta" -ge -7 ]; then
+      date_expr="last $(date -d "$dtstart" +%A)"
+    elif [ "$date_delta" -gt 1 ] && [ "$date_delta" -le 7 ]; then
+      date_expr="next $(date -d "$dtstart" +%A)"
+    else
+      date_expr=$(date -d "$dtstart" +%x)
+    fi
+    date_emoji="📘"
+  else
+    date_emoji="🗒️"
+    date_expr=""
+  fi
+  date_expr=$(printf "%12s" "$date_expr")
+
+  # Print line
+  echo "$dtstamp $filepath $WHITE$date_expr$OFF $date_emoji $GREEN$summary$OFF $FAINT$categories$OFF"
+}
+
+__lines() {
+  # Collect all files
+  FILES_TMP=$(mktemp)
+  trap 'rm -f "$FILES_TMP"' EXIT
+  find "$ROOT" -type f -name '*.ics' >"$FILES_TMP"
+
+  # Compute max length of basenames
+  maxlen=0
+  while IFS= read -r file; do
+    name=$(basename "$file")
+    [ ${#name} -gt "$maxlen" ] && maxlen=${#name}
+  done <"$FILES_TMP"
+
+  lines=$(while IFS= read -r file; do
+    __filepath_to_searchline "$file" "$maxlen"
+  done <"$FILES_TMP")
+
+  # Decorate
+  lines=$(echo "$lines" | eval "$SED_COLLECTIONNAMES_TO_LABELS")
+
+  # Sort and cut off irreleant part
+  lines=$(echo "$lines" | sort -g -r | cut -d ':' -f 2-)
+
+  echo "$lines"
+}
+
+__filepath_from_selection() {
+  selection=$(echo "$1" | cut -d " " -f 1,2 | eval "$SED_COLLECTIONLABELS_TO_NAMES" | sed "s|^|$ROOT/|")
+  echo "$selection"
+}
+
+# Program starts here
+
+# Command line arguments to be self-contained
+# Generate preview of file from selection
+if [ "${1:-}" = "--preview" ]; then
+  vjfile=$(__filepath_from_selection "$2")
+  __vjournal2json <"$vjfile" | jq -r ".description" | batcat --color=always --style=numbers --language=md
+  exit
+fi
+# Delete file from selection
+if [ "${1:-}" = "--delete" ]; then
+  vjfile=$(__filepath_from_selection "$2")
+  rm -v "$vjfile"
+fi
+# Generate new entry
+if [ "${1:-}" = "--new" ]; then
+  label_new=$(echo "$LABLES" | fzf \
+    --margin 20% \
+    --prompt="Select collection> ")
+  uuid_new=$(uuidgen)
+  vjfile_new=$(__filepath_from_selection "$label_new $uuid_new.ics")
+  if [ -f "$vjfile_new" ]; then
+    echo "Bad luck..."
+    return 1
+  fi
+  #
+  TMPFILE="$(mktemp).md"
+  SHAFILE="$TMPFILE.sha"
+  trap 'rm -f "$TMPFILE" "$SHAFILE"' EXIT
+  {
+    echo "::: Keep this line if you want to add a **JOURNAL** entry (associated to today), else we will add a **NOTE**"
+    echo "# <write summary here>"
+    echo "> <comma-separated list of categories>"
+    echo ""
+  } >"$TMPFILE"
+  sha1sum "$TMPFILE" >"$SHAFILE"
+
+  # Open in editor
+  $EDITOR "$TMPFILE" >/dev/tty
+
+  # Update if changes are detected
+  if ! sha1sum -c "$SHAFILE" >/dev/null 2>&1; then
+    vjfile_tmp="$TMPFILE.ics"
+    trap 'rm -f "$vjfile_tmp"' EXIT
+    __vjournalnew "$uuid_new" <"$TMPFILE" >"$vjfile_tmp" && mv "$vjfile_tmp" "$vjfile_new"
+  fi
+fi
+if [ "${1:-}" = "--reload" ]; then
+  __lines
+  exit
+fi
+
+selection=$(
+  __lines | fzf --ansi \
+    --preview="$0 --preview {}" \
+    --bind="ctrl-d:become($0 --delete {})" \
+    --bind="ctrl-n:become($0 --new)" \
+    --bind="ctrl-s:execute($SYNC_CMD)" \
+    --bind="ctrl-r:reload-sync($0 --reload)"
+)
+if [ -z "$selection" ]; then
+  return 0
+fi
+
+VJ_FILE=$(__filepath_from_selection "$selection")
+
+if [ ! -f "$VJ_FILE" ]; then
+  echo "ERROR: File '$VJ_FILE' does not exist!"
+  return 1
+fi
+
+# Parse vjournal file and save as json
+TMPJSON="$(mktemp).json"
+trap 'rm -f "$TMPJSON"' EXIT
+__vjournal2json <"$VJ_FILE" >"$TMPJSON"
+
+# Prepare file to be edited
+TMPFILE="$(mktemp).md"
+SHAFILE="$TMPFILE.sha"
+trap 'rm -f "$TMPFILE" "$SHAFILE"' EXIT
+SUMMARY=$(jq -r '.summary' "$TMPJSON")
+CATEGORIES=$(jq -r '.categories | join(",")' "$TMPJSON")
+{
+  echo "# $SUMMARY"
+  echo "> $CATEGORIES"
+  echo ""
+  jq -r '.description' "$TMPJSON"
+} >"$TMPFILE"
+sha1sum "$TMPFILE" >"$SHAFILE"
+
+# Open in editor
+$EDITOR "$TMPFILE"
+
+# Update only if changes are detected
+if ! sha1sum -c "$SHAFILE" >/dev/null 2>&1; then
+  echo "Uh... chages detected!"
+  vj_file_new="$TMPFILE.ics"
+  trap 'rm -f "$vj_file_new"' EXIT
+  __vjournalupdate "$VJ_FILE" <"$TMPFILE" >"$vj_file_new" && mv "$vj_file_new" "$VJ_FILE"
+fi
+
+exec "$0"
