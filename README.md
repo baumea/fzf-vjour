@@ -1,12 +1,11 @@
-A [fzf](https://github.com/junegunn/fzf)-based **journaling and notes** application with CalDav support.
+A [fzf](https://github.com/junegunn/fzf)-based **journaling, notes, and tasks** application with CalDav support.
 
 Description and Use Case
 ------------------------
-This application allows for a keyboard-controlled maneuvering of your notes and journal entries.
-A journal entry is nothing more than a note associated with a specific date.
-These entries are stored as [iCalendar](https://datatracker.ietf.org/doc/html/rfc5545) files of the type `VJOURNAL`.
+This application allows for a keyboard-controlled maneuvering of your notes, journal entries, and tasks.
+These entries are stored as [iCalendar](https://datatracker.ietf.org/doc/html/rfc5545) files of the type `VJOURNAL` and `VTODO`.
 
-For instance, you could use this application as a minimalistic terminal-based counterpart of [jtx Board](https://jtx.techbee.at/) in a setup
+For instance, you could use this application as a terminal-based counterpart of [jtx Board](https://jtx.techbee.at/) in a setup
 with a CalDav server, such as [Radicale](https://radicale.org/), and a synchronization tool like [vdirsyncer](http://vdirsyncer.pimutils.org/).
 
 Installation
@@ -15,7 +14,7 @@ Just copy the file to your preferred location, e.g., `~/.local/bin`, and make it
 
 ### Requirements
 This is a POSIX script with inline `python3` elements.
-Make sure you have [fzf](https://github.com/junegunn/fzf), [batcat](https://github.com/sharkdp/bat), and [yq](https://github.com/mikefarah/yq) installed.
+Make sure you have [fzf](https://github.com/junegunn/fzf), [batcat](https://github.com/sharkdp/bat), [jq](https://jqlang.org/), and [yq](https://github.com/mikefarah/yq) installed.
 For the `python3` code, we also require [icalendar](https://pypi.org/project/icalendar/).
 
 Configuration
@@ -23,7 +22,7 @@ Configuration
 This application is configured with a YAML file located at `$HOME/.config/fzf-vjour/config.yaml`.
 The entry `datadir` specifies the root directory of your journal and note entries.
 This directory may contain several subfolders, called _collections_.
-The entry `collections` is a list, where each item specifies a subfolder, given by `name`, and a label, given by `label` (any string).
+The entry `collections` is a list, where each item specifies a subfolder, given by `name`, and a label, given by `label` (any string free of white spaces).
 In the application, the user sees the collection labels instead of the collection names.
 This is particularly useful, because some servers use randomly generated names.
 Finally, a third entry `sync_cmd` specifies the command to be executed for synchronizing. 
@@ -34,9 +33,9 @@ datadir: ~/.journal
 sync_cmd: vdirsyncer sync journals
 collections:
   - name: 12cacb18-d3e1-4ad4-a1d0-e5b209012e85
-    label: 💼
+    label: work:💼
   - name: 745ae7a0-d723-4cd8-80c4-75f52f5b7d90
-    label: 🏡
+    label: priv:🏡
 ```
 
 
@@ -59,7 +58,7 @@ path = "~/.journal"
 
 [storage remote]
 type = "caldav"
-item_types = ["VJOURNAL"]
+item_types = ["VJOURNAL", "VTODO"]
 ...
 ```
 
@@ -73,6 +72,15 @@ Use the default `fzf` keys to navigate your notes. In addition, there are the fo
 | ctrl-n | Make a new entry |
 | ctrl-r | Refresh the view |
 | ctrl-s | Run the synchronization command |
+| ctrl-x | Toggle task completion |
+| alt-up | Increase task priority |
+| alt-down | Decrease task priority |
+| alt-0 | Default view: Journal, notes, and _open_ tasks |
+| alt-1 | Display journal entries |
+| alt-2 | Display notes |
+| alt-3 | Display all tasks |
+
+You may also invoke the script with `--help` to see further command-line options. 
 
 License
 -------
