@@ -64,21 +64,22 @@ item_types = ["VJOURNAL", "VTODO"]
 
 Usage
 -----
-Use the default `fzf` keys to navigate your notes. In addition, there are the following keybindings:
+Use the default `fzf` keys to navigate your notes, e.g., `ctrl-j` and `ctrl-k` for going down/up in the list.
+In addition, there are the following keybindings:
 | Key | Action |
 | --- | ------ |
-| enter | Open note/journal in your `$EDITOR` |
-| ctrl-d | Delete the seleted entry |
-| ctrl-n | Make a new entry |
-| ctrl-r | Refresh the view |
-| ctrl-s | Run the synchronization command |
-| ctrl-x | Toggle task completion |
-| alt-up | Increase task priority |
-| alt-down | Decrease task priority |
-| alt-0 | Default view: Journal, notes, and _open_ tasks |
-| alt-1 | Display journal entries |
-| alt-2 | Display notes |
-| alt-3 | Display all tasks |
+| `enter` | Open note/journal/task in your `$EDITOR` |
+| `ctrl-d` | Delete the seleted entry |
+| `ctrl-n` | Make a new entry |
+| `ctrl-r` | Refresh the view |
+| `ctrl-s` | Run the synchronization command |
+| `ctrl-x` | Toggle task completion |
+| `alt-up` | Increase task priority |
+| `alt-down` | Decrease task priority |
+| `alt-0` | Default view: Journal, notes, and _open_ tasks |
+| `alt-1` | Display journal entries |
+| `alt-2` | Display notes |
+| `alt-3` | Display all tasks |
 
 You may also invoke the script with `--help` to see further command-line options. 
 
