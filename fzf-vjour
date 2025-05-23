@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -eu
+set -u
 
 # Read configuration
 CONFIGFILE="$HOME/.config/fzf-vjour/config.yaml"
@@ -24,28 +24,121 @@ SED_COLLECTIONLABELS_TO_NAMES=$(
   yq '.collections[] | "s|\ *" + .label + "\ *|/" + .name + "/|"' <"$CONFIGFILE" |
     xargs printf "-e \"%s\" "
 )
-COLLECTION_LABEL_MAX_LEN=$(yq '[.collections[].label | length] | max' <"$CONFIGFILE")
+COLLECTION_NAME_MAX_LEN=$(yq '[.collections[].name | length] | max' <"$CONFIGFILE")
 LABLES=$(yq '.collections[].label' <"$CONFIGFILE")
 SYNC_CMD=$(yq '.sync_cmd' <"$CONFIGFILE")
+LONGSPACE="                                                                                                                                                                                              "
 
-__vjournalnew() {
+if ! (yq '.collections[].label' | grep ' ') >/dev/null; then
+  echo "We currently do not support whitespaces in the labels"
+  exit 1
+fi
+
+__vtodopriority() {
+  python3 -c '
+import sys
+from datetime import datetime
+from icalendar.cal import Todo
+
+if not len(sys.argv) == 3:
+    print("Pass ical file as first argument!", file=sys.stderr)
+    sys.exit(1)
+
+increase = 1 if sys.argv[2] == "1" else -1
+
+with open(sys.argv[1], "r") as f:
+    try:
+        ical = Todo.from_ical(f.read())
+    except Exception as e:
+        print(f"Failed to read vjournal file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+tlist = [component for component in ical.walk("VTODO")]
+if len(tlist) == 0:
+    print("ical file is not a VTODO", file=sys.stderr)
+    sys.exit(1)
+t = tlist[0]
+
+# Update ical
+priority = t.pop("PRIORITY")
+priority = (int(priority) if priority else 0) + increase
+priority = 0 if priority < 0 else 9 if priority > 9 else priority
+t["PRIORITY"] = priority
+
+# Print
+print(ical.to_ical().decode().replace("\r\n", "\n"))
+' "$@"
+}
+
+__vtodotogglecompleted() {
+  python3 -c '
+import sys
+from datetime import datetime
+from icalendar.cal import Todo
+from icalendar.prop import vDDDTypes
+
+if not len(sys.argv) == 2:
+    print("Pass ical file as first argument!", file=sys.stderr)
+    sys.exit(1)
+
+with open(sys.argv[1], "r") as f:
+    try:
+        ical = Todo.from_ical(f.read())
+    except Exception as e:
+        print(f"Failed to read vjournal file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+tlist = [component for component in ical.walk("VTODO")]
+if len(tlist) == 0:
+    print("ical file is not a VTODO", file=sys.stderr)
+    sys.exit(1)
+t = tlist[0]
+
+# Update ical
+if t.has_key("STATUS") and t["STATUS"] == "COMPLETED":
+  # Mark as not completed
+  t["STATUS"] = "NEEDS-ACTION"
+  t["PERCENT-COMPLETE"] = 0
+  if t.has_key("COMPLETED"): t.pop("COMPLETED")
+else:
+  t["STATUS"] = "COMPLETED"
+  t["PERCENT-COMPLETE"] = 100
+  t["COMPLETED"] = vDDDTypes(datetime.utcnow())
+
+# Print
+print(ical.to_ical().decode().replace("\r\n", "\n"))
+' "$@"
+}
+
+__vicalnew() {
   python3 -c '
 import sys
 from datetime import date, datetime
-from icalendar.cal import Calendar, Journal
+from icalendar.cal import Calendar, Journal, Todo
+from icalendar.prop import vDDDTypes
 
 if not len(sys.argv) == 2:
-    print("Pass uid as first argument!", file=sys.stderr)
+    print("Pass UID as first argument!", file=sys.stderr)
     sys.exit(1)
 
 UID = sys.argv[1]
-ical = Calendar()
-j = Journal()
 
-isnote = True
+start = None
+due = None
 line = sys.stdin.readline().strip()
-if line[:4] == "::: ":
-    isnote = False
+if line[:6] == "::: |>":
+    start = datetime.utcnow().date()
+    line = sys.stdin.readline().strip()
+
+if line[:6] == "::: <|":
+    lst = line.split(" ")
+    due = True
+    if len(lst) >= 3:
+      try:
+        duedate = datetime.strptime(lst[2], "%Y-%m-%d").date()
+        due = duedate
+      except Exception as e:
+        pass
     line = sys.stdin.readline().strip()
 
 if not line[:2] == "# ":
@@ -55,11 +148,11 @@ summary = line[2:]
 
 line = sys.stdin.readline().strip()
 if not line[:2] == "> " and not line == ">":
-    print("Error: Categories line is corrupt!", file=sys.stderr)
-    sys.exit(1)
-categories = line[2:].split(",")
+    categories = []
+else:
+    categories = line[2:].split(",")
+    line = sys.stdin.readline().strip()
 
-line = sys.stdin.readline().strip()
 if not line == "":
     print("Error: Missing separating line!", file=sys.stderr)
     sys.exit(1)
@@ -67,28 +160,84 @@ if not line == "":
 description = sys.stdin.read()
 
 # Create ical
-j["SUMMARY"] = summary
-j.categories = categories
-j["DESCRIPTION"] = description
-j.LAST_MODIFIED = datetime.utcnow()
-j.DTSTAMP = datetime.utcnow()
-j["UID"] = UID
-j["SEQUENCE"] = 1
-j["STATUS"] = "FINAL"
-if not isnote:
-    j.DTSTART = date.today()
-ical.add_component(j)
+now = datetime.utcnow()
+ical = Calendar()
+if due:
+    o = Todo()
+
+    # The following are REQUIRED, but MUST NOT occur more than once.
+    # dtstamp / uid /
+    o.DTSTAMP = now
+    o["UID"] = UID
+
+    # The following are OPTIONAL, but MUST NOT occur more than once.
+    # class / completed / created / description / dtstart / geo / last-mod /
+    # location / organizer / percent / priority / recurid / seq / status /
+    # summary / url /
+    o["CLASS"] = "PRIVATE"
+    o["CREATED"] = vDDDTypes(now)
+    o["DESCRIPTION"] = description.strip()
+    o.LAST_MODIFIED = now
+    o["PRIORITY"] = 0
+    o["SEQUENCE"] = 0
+    o["STATUS"] = "NEEDS-ACTION"
+    o["SUMMARY"] = summary
+
+    # The following is OPTIONAL, but SHOULD NOT occur more than once.
+    # rrule /
+
+    # Either "due" or "duration" MAY appear in a "todoprop", but "due" and
+    # "duration" MUST NOT occur in the same "todoprop". If "duration" appear in
+    # a "todoprop", then "dtstart" MUST also appear in the same "todoprop".
+    # due / duration /
+    if isinstance(due, date):
+      o.DUE = due
+
+    # The following are OPTIONAL, and MAY occur more than once.
+    # attach / attendee / categories / comment / contact / exdate / rstatus /
+    # related / resources / rdate / x-prop / iana-prop
+    o.categories = categories
+
+else:
+    o = Journal()
+    # The following are REQUIRED, but MUST NOT occur more than once.
+    # dtstamp / uid /
+    o.DTSTAMP = now
+    o["UID"] = UID
+    
+    # The following are OPTIONAL, but MUST NOT occur more than once.
+    # class / created / dtstart / last-mod / organizer / recurid / seq / status
+    # / summary / url /
+    o["CLASS"] = "PRIVATE"
+    o["CREATED"] = vDDDTypes(now)
+    o.DTSTART = start
+    o.LAST_MODIFIED = now
+    o["SEQUENCE"] = 0
+    o["STATUS"] = "FINAL"
+    o["SUMMARY"] = summary
+
+    # The following is OPTIONAL, but SHOULD NOT occur more than once.
+    # rrule /
+    
+    # The following are OPTIONAL, and MAY occur more than once.
+    # attach / attendee / categories / comment / contact / description / exdate
+    # / related / rdate / rstatus / x-prop / iana-prop
+    o.categories = categories
+    o["DESCRIPTION"] = description.strip()
+
+ical.add_component(o)
+
+ical["PRODID"] = "fzf-vjour/basic"
 ical["VERSION"] = "2.0"
-ical["PRODID"] = "vjournew/basic"
 
 # Print
 print(ical.to_ical().decode().replace("\r\n", "\n"))' "$@"
 }
-__vjournalupdate() {
+__icalupdate() {
   python3 -c '
 import sys
-from datetime import datetime
-from icalendar.cal import Journal
+from datetime import date, datetime
+from icalendar.cal import Calendar, Todo
 
 if not len(sys.argv) == 2:
     print("Pass ical file as first argument!", file=sys.stderr)
@@ -96,18 +245,33 @@ if not len(sys.argv) == 2:
 
 with open(sys.argv[1], "r") as f:
     try:
-        ical = Journal.from_ical(f.read())
+        ical = Calendar.from_ical(f.read())
     except Exception as e:
-        print(f"Failed to read vjournal file: {e}", file=sys.stderr)
+        print(f"Failed to read ical file: {e}", file=sys.stderr)
         sys.exit(1)
 
-jlist = [component for component in ical.walk("VJOURNAL")]
-if len(jlist) == 0:
-    print("ical file is not a VJOURNAL", file=sys.stderr)
-    sys.exit(1)
-j = jlist[0]
+olist = [component for component in ical.walk(select=lambda c:c.name in ["VJOURNAL", "VTODO"])]
+if len(olist) == 0:
+    sys.exit(0)
+
+o = olist[0]
 
 line = sys.stdin.readline().strip()
+due = None
+if isinstance(o, Todo):
+    if not line[:6] == "::: <|":
+        print("Error: Due date line is corrupt!", file=sys.stderr)
+        sys.exit(1)
+    lst = line.split(" ")
+    due = True
+    if len(lst) >= 3:
+      try:
+        duedate = datetime.strptime(lst[2], "%Y-%m-%d").date()
+        due = duedate
+      except Exception as e:
+        pass
+    line = sys.stdin.readline().strip()
+
 if not line[:2] == "# ":
     print("Error: Summary line is corrupt!", file=sys.stderr)
     sys.exit(1)
@@ -115,11 +279,11 @@ summary = line[2:]
 
 line = sys.stdin.readline().strip()
 if not line[:2] == "> " and not line == ">":
-    print("Error: Categories line is corrupt!", file=sys.stderr)
-    sys.exit(1)
-categories = line[2:].split(",")
+    categories = []
+else:
+    categories = line[2:].split(",")
+    line = sys.stdin.readline().strip()
 
-line = sys.stdin.readline().strip()
 if not line == "":
     print("Error: Missing separating line!", file=sys.stderr)
     sys.exit(1)
@@ -127,54 +291,95 @@ if not line == "":
 description = sys.stdin.read()
 
 # Update ical
-j["SUMMARY"] = summary
-j.categories = categories
-j["DESCRIPTION"] = description
-j.LAST_MODIFIED = datetime.utcnow()
+if due:
+    if isinstance(due, date):
+        o.DUE = due 
+    elif "DUE" in o.keys():
+        o.pop("DUE")
+o["SUMMARY"] = summary
+o.categories = categories
+o["DESCRIPTION"] = description.strip()
+o.LAST_MODIFIED = datetime.utcnow()
+seq = o["SEQUENCE"] if "SEQUENCE" in o.keys() else 0
+o["SEQUENCE"] = seq + 1
 
 # Print
 print(ical.to_ical().decode().replace("\r\n", "\n"))
 ' "$@"
 }
 
-__vjournal2json() {
+__ical2json() {
   python3 -c '
 import sys
 import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from icalendar.cal import Journal
+from icalendar.cal import Calendar, Todo
 
 input_data = sys.stdin.read()
 try:
-    ical = Journal.from_ical(input_data)
+    ical = Calendar.from_ical(input_data)
 except Exception as e:
-    print(f"Failed to read vjournal file: {e}", file=sys.stderr)
+    print(f"Failed to read ical file: {e}", file=sys.stderr)
     sys.exit(1)
 
-jlist = [component for component in ical.walk("VJOURNAL")]
-if len(jlist) == 0:
+olist = [component for component in ical.walk(select=lambda c:c.name in ["VJOURNAL", "VTODO"])]
+if len(olist) == 0:
     sys.exit(0)
 
-j = jlist[0]
+o = olist[0]
 
 local_tz = ZoneInfo("localtime")
 data = {
-    "summary": j.get("SUMMARY"),
-    "description": j.get("DESCRIPTION"),
-    "categories": j.categories,
-    "class": j.get("CLASS"),
-    "created": str(j.DTSTAMP.astimezone(local_tz)),
-    "last_modified": str(j.LAST_MODIFIED.astimezone(local_tz)),
+    "summary": o.get("SUMMARY"),
+    "description": o.get("DESCRIPTION") if "DESCRIPTION" in o.keys() else "",
+    "categories": o.categories,
+    "class": o.get("CLASS"),
+    "created": str(o.DTSTAMP.astimezone(local_tz)) if o.DTSTAMP else "",
+    "last_modified": str(o.LAST_MODIFIED.astimezone(local_tz)) if o.LAST_MODIFIED else "",
     "start": str(
-        j.DTSTART.astimezone(local_tz)
-        if isinstance(j.DTSTART, datetime)
-        else j.DTSTART or ""
+        o.DTSTART.astimezone(local_tz)
+        if isinstance(o.DTSTART, datetime)
+        else o.DTSTART or ""
     ),
 }
 
+if isinstance(o, Todo):
+    data["due"] = str(o.DUE) if o.DUE else ""
+
 print(json.dumps(data))'
 }
+
+__date_not_in_future() {
+  date_target=$(date -d "$1" +%s)
+  date_today=$(date -d "00:00" +%s)
+  date_delta=$((date_target - date_today))
+  if [ "$date_delta" -le 0 ]; then
+    echo 1
+  fi
+}
+
+__date_to_expression() {
+  date_target=$(date -d "$1" +%s)
+  date_today=$(date -d "00:00" +%s)
+  date_delta=$(((date_target - date_today) / 86400))
+  date_expr=$date_delta
+  if [ "$date_delta" -eq 0 ]; then
+    date_expr="today"
+  elif [ "$date_delta" -eq -1 ]; then
+    date_expr="yesterday"
+  elif [ "$date_delta" -eq 1 ]; then
+    date_expr="tomorrow"
+  elif [ "$date_delta" -lt -1 ] && [ "$date_delta" -ge -7 ]; then
+    date_expr="last $(date -d "$1" +%A)"
+  elif [ "$date_delta" -gt 1 ] && [ "$date_delta" -le 7 ]; then
+    date_expr="next $(date -d "$1" +%A)"
+  else
+    date_expr=$(date -d "$1" +%x)
+  fi
+  echo "$date_expr"
+}
+
 # Process each file
 # This function takes two arguments:
 #
@@ -182,86 +387,80 @@ print(json.dumps(data))'
 # @param string: Maximum length of filenames (for padding purposes)
 __filepath_to_searchline() {
   filepath="$1"
-  maxlen="$2"
-  totallen=$((maxlen + ${#ROOT}))
-  filepathpad=$(printf "%-${totallen}s" "$filepath")
+  collection=$(dirname "$filepath" | sed "s|^$ROOT/*||")
+  filename=$(basename "$filepath")
 
   # Color support
   GREEN=$(printf '\033[1;32m')
+  RED=$(printf '\033[1;31m')
   WHITE=$(printf '\033[1;97m')
   FAINT=$(printf '\033[2m')
   OFF=$(printf '\033[m')
 
   # Parse file
-  summary=""
-  categories=""
-  dtstamp=""
-  dtstart=""
-  while IFS= read -r line; do
-    case "$line" in
-    SUMMARY:*)
-      summary="${line#SUMMARY:}"
-      ;;
-    CATEGORIES:*)
-      categories="${line#CATEGORIES:}"
-      ;;
-    DTSTAMP:*)
-      dtstamp="${line#DTSTAMP:}"
-      ;;
-    DTSTART*:[0-9]*)
-      dtstart=$(echo "$line" | grep -oE '[0-9]{8}')
-      ;;
-    esac
-    if [ -n "$summary" ] && [ -n "$categories" ] && [ -n "$dtstamp" ] && [ -n "$dtstart" ]; then
-      break
-    fi
-  done <"$filepath"
+  summary=$(grep '^SUMMARY:' "$filepath" | cut -d ':' -f 2 | sed 's/\\,/,/g')
+  categories=$(grep '^CATEGORIES:' "$filepath" | cut -d ':' -f 2)
+  dtstamp=$(grep '^LAST-MODIFIED:' "$filepath" | cut -d ':' -f 2)
+  if [ -z "$dtstamp" ]; then
+    dtstamp=$(grep '^DTSTAMP:' "$filepath" | cut -d ':' -f 2)
+  fi
+  dtstart=$(grep '^DTSTART' "$filepath" | grep -oE '[0-9]{8}')
+  due=$(grep '^DUE' "$filepath" | grep -oE '[0-9]{8}')
+  priority=$(grep '^PRIORITY:' "$filepath" | cut -d ':' -f 2)
+  task=$(grep '^BEGIN:VTODO' "$filepath")
+  completed=$(grep '^STATUS:COMPLETED' "$filepath")
 
   # Parse date
   if [ -n "$dtstart" ]; then
-    date_target=$(date -d "$dtstart" +%s)
-    date_today=$(date +%s)
-    date_delta=$(((date_target - date_today) / 86400))
-    date_expr=$date_delta
-    if [ "$date_delta" -eq 0 ]; then
-      date_expr="today"
-    elif [ "$date_delta" -eq -1 ]; then
-      date_expr="yesterday"
-    elif [ "$date_delta" -eq 1 ]; then
-      date_expr="tomorrow"
-    elif [ "$date_delta" -lt -1 ] && [ "$date_delta" -ge -7 ]; then
-      date_expr="last $(date -d "$dtstart" +%A)"
-    elif [ "$date_delta" -gt 1 ] && [ "$date_delta" -le 7 ]; then
-      date_expr="next $(date -d "$dtstart" +%A)"
-    else
-      date_expr=$(date -d "$dtstart" +%x)
-    fi
-    date_emoji="📘"
+    emoji="📘"
+    date_expr=$(__date_to_expression "$dtstart")
   else
-    date_emoji="🗒️"
+    emoji="🗒️"
     date_expr=""
   fi
+
+  # Check if this is a task
+  if [ -n "$task" ]; then
+    emoji="🔲"
+    if [ -n "$completed" ]; then
+      emoji="✅"
+    fi
+  fi
+
+  # Check Priority
+  if [ -n "$priority" ] && [ "$priority" -gt 0 ]; then
+    prioritymsg="❗($priority) "
+    priority=$((10 - priority))
+  else
+    prioritymsg=""
+    priority=0
+  fi
+
+  # Check due date
+  if [ -n "$due" ]; then
+    date_expr=$(__date_to_expression "$due")
+  fi
   date_expr=$(printf "%12s" "$date_expr")
+  # Color date
+  notinfuture=$(__date_not_in_future "$due")
+  if [ -n "$notinfuture" ] && [ -n "$due" ]; then
+    date_expr="$RED$date_expr$OFF"
+    summary_color="$RED"
+  else
+    date_expr="$WHITE$date_expr$OFF"
+    summary_color="$GREEN"
+  fi
 
   # Print line
-  echo "$dtstamp $filepath $WHITE$date_expr$OFF $date_emoji $GREEN$summary$OFF $FAINT$categories$OFF"
+  echo "$priority $dtstamp $collection $date_expr $emoji $prioritymsg$summary_color$summary$OFF $FAINT$categories$OFF$LONGSPACE/$filename"
+  #echo "$priority $dtstamp $filepathpad $date_expr $emoji $prioritymsg$summary_color$summary$OFF $FAINT$categories$OFF"
 }
 
 __lines() {
-  # Collect all files
-  FILES_TMP=$(mktemp)
-  find "$ROOT" -type f -name '*.ics' >"$FILES_TMP"
-
-  # Compute max length of basenames
-  maxlen=0
-  while IFS= read -r file; do
-    name=$(basename "$file")
-    [ ${#name} -gt "$maxlen" ] && maxlen=${#name}
-  done <"$FILES_TMP"
-
-  lines=$(while IFS= read -r file; do
-    __filepath_to_searchline "$file" "$maxlen"
-  done <"$FILES_TMP")
+  lines=$(find "$ROOT" -type f -name '*.ics' |
+    while IFS= read -r file; do
+      __filepath_to_searchline "$file"
+    done)
 
   # Decorate
   lines=$(echo "$lines" | eval "$SED_COLLECTIONNAMES_TO_LABELS")
@@ -269,71 +468,160 @@ __lines() {
   # Sort and cut off irreleant part
   lines=$(echo "$lines" | sort -g -r | cut -d ':' -f 2-)
 
-  rm "$FILES_TMP"
   echo "$lines"
 }
 
 __filepath_from_selection() {
-  selection=$(echo "$1" | cut -d " " -f 1,2 | eval "$SED_COLLECTIONLABELS_TO_NAMES" | sed "s|^|$ROOT/|")
-  echo "$selection"
+  filename=$(echo "$1" | rev | cut -d "/" -f 1 | rev)
+  dirname=$(echo "$1" | cut -d " " -f 1 | eval "$SED_COLLECTIONLABELS_TO_NAMES" | sed "s|^|$ROOT|")
+  echo "$dirname/$filename"
 }
 
 # Program starts here
 
+if [ "${1:-}" = "--help" ]; then
+  echo "Usage: $0 [OPTION]"
+  echo ""
+  echo "You may specify at most one option."
+  echo "  --help                 Show this help and exit"
+  echo "  --tasks                Show tasks only"
+  echo "  --no-tasks             Ignore tasks"
+  echo "  --notes                Show notes only"
+  echo "  --no-notes             Ignore notes"
+  echo "  --journal              Show journal only"
+  echo "  --no-journal           Ignore journal"
+  echo "  --completed            Show completed tasks only"
+  echo "  --no-completed         Ignore completed tasks"
+  echo "  --new                  Create new entry"
+  echo ""
+  echo "The following options are for internal use."
+  echo "  --reload                            Reload list"
+  echo "  --preview <selection>               Generate preview"
+  echo "  --delete <selection>                Delete selected entry"
+  echo "  --decrease-priority <selection>     Decrease priority of selected task"
+  echo "  --increase-priority <selection>     Increase priority of selected task"
+  echo "  --toggle-completed <selection>      Toggle completion flag of task"
+  exit
+fi
 # Command line arguments to be self-contained
 # Generate preview of file from selection
 if [ "${1:-}" = "--preview" ]; then
   vjfile=$(__filepath_from_selection "$2")
-  __vjournal2json <"$vjfile" | jq -r ".description" | batcat --color=always --style=numbers --language=md
+  __ical2json <"$vjfile" | jq -r ".description" | batcat --color=always --style=numbers --language=md
   exit
 fi
 # Delete file from selection
 if [ "${1:-}" = "--delete" ]; then
   vjfile=$(__filepath_from_selection "$2")
-  rm -v "$vjfile"
+  rm -i "$vjfile"
 fi
 # Generate new entry
 if [ "${1:-}" = "--new" ]; then
-  label_new=$(echo "$LABLES" | fzf \
+  collection=$(echo "$LABLES" | fzf \
     --margin 20% \
     --prompt="Select collection> ")
-  uuid_new=$(uuidgen)
-  vjfile_new=$(__filepath_from_selection "$label_new $uuid_new.ics")
-  if [ -f "$vjfile_new" ]; then
-    echo "Bad luck..."
-    return 1
-  fi
-  #
-  TMPFILE=$(mktemp --suffix='.md')
-  SHAFILE="$TMPFILE.sha"
+  file=""
+  while [ -f "$file" ] || [ -z "$file" ]; do
+    uuid=$(uuidgen)
+    file=$(__filepath_from_selection "$collection /$uuid.ics")
+  done
+  tmpmd=$(mktemp --suffix='.md')
+  tmpsha="$tmpmd.sha"
   {
-    echo "::: Keep this line if you want to add a **JOURNAL** entry (associated to today), else we will add a **NOTE**"
-    echo "# <write summary here>"
-    echo "> <comma-separated list of categories>"
+    echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
+    echo "::: <| <!-- specify the due date for to-dos, can be empty -->"
+    echo "# <!-- write summary here -->"
+    echo "> <!-- comma-separated list of categories -->"
     echo ""
-  } >"$TMPFILE"
-  sha1sum "$TMPFILE" >"$SHAFILE"
+  } >"$tmpmd"
+  sha1sum "$tmpmd" >"$tmpsha"
 
   # Open in editor
-  $EDITOR "$TMPFILE" >/dev/tty
+  $EDITOR "$tmpmd" >/dev/tty
 
   # Update if changes are detected
-  if ! sha1sum -c "$SHAFILE" >/dev/null 2>&1; then
-    vjfile_tmp="$TMPFILE.ics"
-    __vjournalnew "$uuid_new" <"$TMPFILE" >"$vjfile_tmp" && mv "$vjfile_tmp" "$vjfile_new" || rm "$vjfile_tmp"
+  if ! sha1sum -c "$tmpsha" >/dev/null 2>&1; then
+    tmpfile="$tmpmd.ics"
+    tmpferr="$tmpmd.err"
+    if __vicalnew "$uuid" <"$tmpmd" >"$tmpfile" 2>"$tmpferr"; then
+      mv "$tmpfile" "$file"
+    else
+      rm "$tmpfile"
+      less "$tmpferr"
+    fi
+    rm "$tmpferr"
   fi
-  rm "$TMPFILE" "$SHAFILE"
+  rm "$tmpmd" "$tmpsha"
+fi
+# Toggle completed flag
+if [ "${1:-}" = "--toggle-completed" ]; then
+  vtfile=$(__filepath_from_selection "$2")
+  vtfile_tmp=$(mktemp)
+  __vtodotogglecompleted "$vtfile" >"$vtfile_tmp" && mv "$vtfile_tmp" "$vtfile" || rm "$vtfile_tmp"
+fi
+# Increase priority
+if [ "${1:-}" = "--increase-priority" ]; then
+  vtfile=$(__filepath_from_selection "$2")
+  vtfile_tmp=$(mktemp)
+  __vtodopriority "$vtfile" "1" >"$vtfile_tmp" && mv "$vtfile_tmp" "$vtfile" || rm "$vtfile_tmp"
+fi
+# Decrease priority
+if [ "${1:-}" = "--decrease-priority" ]; then
+  vtfile=$(__filepath_from_selection "$2")
+  vtfile_tmp=$(mktemp)
+  __vtodopriority "$vtfile" "-1" >"$vtfile_tmp" && mv "$vtfile_tmp" "$vtfile" || rm "$vtfile_tmp"
 fi
 if [ "${1:-}" = "--reload" ]; then
   __lines
   exit
 fi
 
+query="${FZF_QUERY:-}"
+if [ "${1:-}" = "--no-completed" ]; then
+  query="!✅"
+fi
+if [ "${1:-}" = "--completed" ]; then
+  query="✅"
+fi
+if [ "${1:-}" = "--tasks" ]; then
+  query="✅ | 🔲"
+fi
+if [ "${1:-}" = "--no-tasks" ]; then
+  query="!✅ !🔲"
+fi
+if [ "${1:-}" = "--notes" ]; then
+  query="🗒️"
+fi
+if [ "${1:-}" = "--no-notes" ]; then
+  query="!🗒️"
+fi
+if [ "${1:-}" = "--journal" ]; then
+  query="📘"
+fi
+if [ "${1:-}" = "--no-journal" ]; then
+  query="!📘"
+fi
+if [ -z "$query" ]; then
+  query="!✅"
+fi
+query=$(echo "$query" | sed 's/ *$//g')
+
 selection=$(
   __lines | fzf --ansi \
+    --query="$query " \
+    --no-sort \
+    --no-hscroll \
+    --ellipsis='' \
     --preview="$0 --preview {}" \
     --bind="ctrl-d:become($0 --delete {})" \
+    --bind="ctrl-x:become($0 --toggle-completed {})" \
+    --bind="alt-up:become($0 --increase-priority {})" \
+    --bind="alt-down:become($0 --decrease-priority {})" \
     --bind="ctrl-n:become($0 --new)" \
+    --bind="alt-0:change-query(!✅)" \
+    --bind="alt-1:change-query(📘)" \
+    --bind="alt-2:change-query(🗒️)" \
+    --bind="alt-3:change-query(✅ | 🔲)" \
     --bind="ctrl-s:execute($SYNC_CMD)" \
     --bind="ctrl-r:reload-sync($0 --reload)"
 )
@@ -341,40 +629,44 @@ if [ -z "$selection" ]; then
   return 0
 fi
 
-VJ_FILE=$(__filepath_from_selection "$selection")
+file=$(__filepath_from_selection "$selection")
 
-if [ ! -f "$VJ_FILE" ]; then
-  echo "ERROR: File '$VJ_FILE' does not exist!"
+if [ ! -f "$file" ]; then
+  echo "ERROR: File '$file' does not exist!"
   return 1
 fi
 
 # Parse vjournal file and save as json
-TMPJSON=$(mktemp)
-__vjournal2json <"$VJ_FILE" >"$TMPJSON"
+filejson=$(mktemp)
+__ical2json <"$file" >"$filejson"
 
 # Prepare file to be edited
-TMPFILE=$(mktemp --suffix='.md')
-SHAFILE="$TMPFILE.sha"
-SUMMARY=$(jq -r '.summary' "$TMPJSON")
-CATEGORIES=$(jq -r '.categories | join(",")' "$TMPJSON")
+filetmp=$(mktemp --suffix='.md')
+filesha="$filetmp.sha"
+if jq -e '.due' "$filejson"; then
+  due=$(jq -r '.due' "$filejson")
+  echo "::: <| $due" >"$filetmp"
+fi
+summary=$(jq -r '.summary' "$filejson")
+categories=$(jq -r '.categories | join(",")' "$filejson")
 {
-  echo "# $SUMMARY"
-  echo "> $CATEGORIES"
+  echo "# $summary"
+  echo "> $categories"
   echo ""
-  jq -r '.description' "$TMPJSON"
-} >"$TMPFILE"
-rm "$TMPJSON"
-sha1sum "$TMPFILE" >"$SHAFILE"
+  jq -r '.description' "$filejson"
+} >>"$filetmp"
+rm "$filejson"
+sha1sum "$filetmp" >"$filesha"
 
 # Open in editor
-$EDITOR "$TMPFILE"
+$EDITOR "$filetmp"
 
 # Update only if changes are detected
-if ! sha1sum -c "$SHAFILE" >/dev/null 2>&1; then
+if ! sha1sum -c "$filesha" >/dev/null 2>&1; then
   echo "Uh... chages detected!"
-  vj_file_new="$TMPFILE.ics"
-  __vjournalupdate "$VJ_FILE" <"$TMPFILE" >"$vj_file_new" && mv "$vj_file_new" "$VJ_FILE" || rm "$vj_file_new"
+  vj_file_new="$filetmp.ics"
+  __icalupdate "$file" <"$filetmp" >"$vj_file_new" && mv "$vj_file_new" "$file" || rm "$vj_file_new"
 fi
-rm "$TMPFILE" "$SHAFILE"
+rm "$filetmp" "$filesha"
 
 exec "$0"
