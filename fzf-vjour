@@ -4,7 +4,7 @@ set -eu
 
 # Read configuration
 # shellcheck source=/dev/null
-. "$HOME/.config/fzf-awk-board/config"
+. "$HOME/.config/fzf-vjour/config"
 if [ -z "$ROOT" ] || [ -z "$SYNC_CMD" ] || [ -z "$COLLECTION_LABELS" ]; then
   echo "Failed to get configuration." >/dev/tty
   exit 1
