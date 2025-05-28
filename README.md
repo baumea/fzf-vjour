@@ -13,36 +13,31 @@ Installation
 Just copy the file to your preferred location, e.g., `~/.local/bin`, and make it executable.
 
 ### Requirements
-This is a POSIX script with inline `python3` elements.
-Make sure you have [fzf](https://github.com/junegunn/fzf), [batcat](https://github.com/sharkdp/bat), [jq](https://jqlang.org/), and [yq](https://github.com/mikefarah/yq) installed.
-For the `python3` code, we also require [icalendar](https://pypi.org/project/icalendar/).
+This is a POSIX script with inline `awk` elements.
+Make sure you have [fzf](https://github.com/junegunn/fzf) and [batcat](https://github.com/sharkdp/bat).
 
 Configuration
 --------------
-This application is configured with a YAML file located at `$HOME/.config/fzf-vjour/config.yaml`.
-The entry `datadir` specifies the root directory of your journal and note entries.
+This application is configured with a file located at `$HOME/.config/fzf-vjour/config`.
+The entry `ROOT` specifies the root directory of your journal and note entries.
 This directory may contain several subfolders, called _collections_.
-The entry `collections` is a list, where each item specifies a subfolder, given by `name`, and a label, given by `label` (any string free of white spaces).
+The entry `COLLECTION_LABELS` is a `;`-delimited list, where each item specifies a subfolder and a label (see example below).
 In the application, the user sees the collection labels instead of the collection names.
 This is particularly useful, because some servers use randomly generated names.
-Finally, a third entry `sync_cmd` specifies the command to be executed for synchronizing. 
+Finally, a third entry `SYNC_CMD` specifies the command to be executed for synchronizing. 
 
 Consider the following example:
-```yaml
-datadir: ~/.journal
-sync_cmd: vdirsyncer sync journals
-collections:
-  - name: 12cacb18-d3e1-4ad4-a1d0-e5b209012e85
-    label: work:💼
-  - name: 745ae7a0-d723-4cd8-80c4-75f52f5b7d90
-    label: priv:🏡
+```sh
+ROOT=~/.journal/
+COLLECTION_LABELS="745ae7a0-d723-4cd8-80c4-75f52f5b7d90=shared 👫🏼;12cacb18-d3e1-4ad4-a1d0-e5b209012e85=work   💼;"
+SYNC_CMD="vdirsyncer sync journals"
 ```
 
 
 Here the files are stored in
 `~/.journal/12cacb18-d3e1-4ad4-a1d0-e5b209012e85` (work-related entries)
 and
-`~/.journal/745ae7a0-d723-4cd8-80c4-75f52f5b7d90` (personal collection).
+`~/.journal/745ae7a0-d723-4cd8-80c4-75f52f5b7d90` (shared collection).
 
 This configuration will work well with a `vdirsyncer` configuration such as 
 ```confini
@@ -69,7 +64,7 @@ In addition, there are the following keybindings:
 | Key | Action |
 | --- | ------ |
 | `enter` | Open note/journal/task in your `$EDITOR` |
-| `ctrl-d` | Delete the seleted entry |
+| `ctrl-alt-d` | Delete the seleted entry |
 | `ctrl-n` | Make a new entry |
 | `ctrl-r` | Refresh the view |
 | `ctrl-s` | Run the synchronization command |

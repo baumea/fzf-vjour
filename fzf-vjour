@@ -1,484 +1,534 @@
 #!/bin/sh
 
-set -u
+set -eu
 
 # Read configuration
-CONFIGFILE="$HOME/.config/fzf-vjour/config.yaml"
-if [ ! -e "$CONFIGFILE" ]; then
-  echo "Config file '$CONFIGFILE' not found"
-  exit 1
-fi
-ROOT=$(yq '.datadir' <"$CONFIGFILE")
-ROOT=$(eval "echo $ROOT")
-if [ ! -d "$ROOT" ]; then
-  echo "Root directory not set or wrongly set"
-  exit 1
-fi
-SED_COLLECTIONNAMES_TO_LABELS=$(
-  printf "sed "
-  yq '.collections[] | "s|/*" + .name + "/*|:" + .label + "\ |"' <"$CONFIGFILE" |
-    xargs printf "-e \"%s\" "
-)
-SED_COLLECTIONLABELS_TO_NAMES=$(
-  printf "sed "
-  yq '.collections[] | "s|\ *" + .label + "\ *|/" + .name + "/|"' <"$CONFIGFILE" |
-    xargs printf "-e \"%s\" "
-)
-COLLECTION_NAME_MAX_LEN=$(yq '[.collections[].name | length] | max' <"$CONFIGFILE")
-LABLES=$(yq '.collections[].label' <"$CONFIGFILE")
-SYNC_CMD=$(yq '.sync_cmd' <"$CONFIGFILE")
-LONGSPACE="                                                                                                                                                                                              "
-
-if ! (yq '.collections[].label' | grep ' ') >/dev/null; then
-  echo "We currently do not support whitespaces in the labels"
+# shellcheck source=/dev/null
+. "$HOME/.config/fzf-awk-board/config"
+if [ -z "$ROOT" ] || [ -z "$SYNC_CMD" ] || [ -z "$COLLECTION_LABELS" ]; then
+  echo "Failed to get configuration." >/dev/tty
   exit 1
 fi
 
-__vtodopriority() {
-  python3 -c '
-import sys
-from datetime import datetime
-from icalendar.cal import Todo
-
-if not len(sys.argv) == 3:
-    print("Pass ical file as first argument!", file=sys.stderr)
-    sys.exit(1)
-
-increase = 1 if sys.argv[2] == "1" else -1
-
-with open(sys.argv[1], "r") as f:
-    try:
-        ical = Todo.from_ical(f.read())
-    except Exception as e:
-        print(f"Failed to read vjournal file: {e}", file=sys.stderr)
-        sys.exit(1)
-
-tlist = [component for component in ical.walk("VTODO")]
-if len(tlist) == 0:
-    print("ical file is not a VTODO", file=sys.stderr)
-    sys.exit(1)
-t = tlist[0]
-
-# Update ical
-priority = t.pop("PRIORITY")
-priority = (int(priority) if priority else 0) + increase
-priority = 0 if priority < 0 else 9 if priority > 9 else priority
-t["PRIORITY"] = priority
-
-# Print
-print(ical.to_ical().decode().replace("\r\n", "\n"))
-' "$@"
-}
-
-__vtodotogglecompleted() {
-  python3 -c '
-import sys
-from datetime import datetime
-from icalendar.cal import Todo
-from icalendar.prop import vDDDTypes
-
-if not len(sys.argv) == 2:
-    print("Pass ical file as first argument!", file=sys.stderr)
-    sys.exit(1)
-
-with open(sys.argv[1], "r") as f:
-    try:
-        ical = Todo.from_ical(f.read())
-    except Exception as e:
-        print(f"Failed to read vjournal file: {e}", file=sys.stderr)
-        sys.exit(1)
-
-tlist = [component for component in ical.walk("VTODO")]
-if len(tlist) == 0:
-    print("ical file is not a VTODO", file=sys.stderr)
-    sys.exit(1)
-t = tlist[0]
-
-# Update ical
-if t.has_key("STATUS") and t["STATUS"] == "COMPLETED":
-  # Mark as not completed
-  t["STATUS"] = "NEEDS-ACTION"
-  t["PERCENT-COMPLETE"] = 0
-  if t.has_key("COMPLETED"): t.pop("COMPLETED")
-else:
-  t["STATUS"] = "COMPLETED"
-  t["PERCENT-COMPLETE"] = 100
-  t["COMPLETED"] = vDDDTypes(datetime.utcnow())
-
-# Print
-print(ical.to_ical().decode().replace("\r\n", "\n"))
-' "$@"
-}
-
-__vicalnew() {
-  python3 -c '
-import sys
-from datetime import date, datetime
-from icalendar.cal import Calendar, Journal, Todo
-from icalendar.prop import vDDDTypes
-
-if not len(sys.argv) == 2:
-    print("Pass UID as first argument!", file=sys.stderr)
-    sys.exit(1)
-
-UID = sys.argv[1]
-
-start = None
-due = None
-line = sys.stdin.readline().strip()
-if line[:6] == "::: |>":
-    start = datetime.utcnow().date()
-    line = sys.stdin.readline().strip()
-
-if line[:6] == "::: <|":
-    lst = line.split(" ")
-    due = True
-    if len(lst) >= 3:
-      try:
-        duedate = datetime.strptime(lst[2], "%Y-%m-%d").date()
-        due = duedate
-      except Exception as e:
-        pass
-    line = sys.stdin.readline().strip()
-
-if not line[:2] == "# ":
-    print("Error: Summary line is corrupt!", file=sys.stderr)
-    sys.exit(1)
-summary = line[2:]
-
-line = sys.stdin.readline().strip()
-if not line[:2] == "> " and not line == ">":
-    categories = []
-else:
-    categories = line[2:].split(",")
-    line = sys.stdin.readline().strip()
-
-if not line == "":
-    print("Error: Missing separating line!", file=sys.stderr)
-    sys.exit(1)
-
-description = sys.stdin.read()
-
-# Create ical
-now = datetime.utcnow()
-ical = Calendar()
-if due:
-    o = Todo()
-
-    # The following are REQUIRED, but MUST NOT occur more than once.
-    # dtstamp / uid /
-    o.DTSTAMP = now
-    o["UID"] = UID
-
-    # The following are OPTIONAL, but MUST NOT occur more than once.
-    # class / completed / created / description / dtstart / geo / last-mod /
-    # location / organizer / percent / priority / recurid / seq / status /
-    # summary / url /
-    o["CLASS"] = "PRIVATE"
-    o["CREATED"] = vDDDTypes(now)
-    o["DESCRIPTION"] = description.strip()
-    o.LAST_MODIFIED = now
-    o["PRIORITY"] = 0
-    o["SEQUENCE"] = 0
-    o["STATUS"] = "NEEDS-ACTION"
-    o["SUMMARY"] = summary
-
-    # The following is OPTIONAL, but SHOULD NOT occur more than once.
-    # rrule /
-
-    # Either "due" or "duration" MAY appear in a "todoprop", but "due" and
-    # "duration" MUST NOT occur in the same "todoprop". If "duration" appear in
-    # a "todoprop", then "dtstart" MUST also appear in the same "todoprop".
-    # due / duration /
-    if isinstance(due, date):
-      o.DUE = due
-
-    # The following are OPTIONAL, and MAY occur more than once.
-    # attach / attendee / categories / comment / contact / exdate / rstatus /
-    # related / resources / rdate / x-prop / iana-prop
-    o.categories = categories
-
-else:
-    o = Journal()
-    # The following are REQUIRED, but MUST NOT occur more than once.
-    # dtstamp / uid /
-    o.DTSTAMP = now
-    o["UID"] = UID
-    
-    # The following are OPTIONAL, but MUST NOT occur more than once.
-    # class / created / dtstart / last-mod / organizer / recurid / seq / status
-    # / summary / url /
-    o["CLASS"] = "PRIVATE"
-    o["CREATED"] = vDDDTypes(now)
-    o.DTSTART = start
-    o.LAST_MODIFIED = now
-    o["SEQUENCE"] = 0
-    o["STATUS"] = "FINAL"
-    o["SUMMARY"] = summary
-
-    # The following is OPTIONAL, but SHOULD NOT occur more than once.
-    # rrule /
-    
-    # The following are OPTIONAL, and MAY occur more than once.
-    # attach / attendee / categories / comment / contact / description / exdate
-    # / related / rdate / rstatus / x-prop / iana-prop
-    o.categories = categories
-    o["DESCRIPTION"] = description.strip()
-
-ical.add_component(o)
-
-ical["PRODID"] = "fzf-vjour/basic"
-ical["VERSION"] = "2.0"
-
-# Print
-print(ical.to_ical().decode().replace("\r\n", "\n"))' "$@"
-}
-__icalupdate() {
-  python3 -c '
-import sys
-from datetime import date, datetime
-from icalendar.cal import Calendar, Todo
-
-if not len(sys.argv) == 2:
-    print("Pass ical file as first argument!", file=sys.stderr)
-    sys.exit(1)
-
-with open(sys.argv[1], "r") as f:
-    try:
-        ical = Calendar.from_ical(f.read())
-    except Exception as e:
-        print(f"Failed to read ical file: {e}", file=sys.stderr)
-        sys.exit(1)
-
-olist = [component for component in ical.walk(select=lambda c:c.name in ["VJOURNAL", "VTODO"])]
-if len(olist) == 0:
-    sys.exit(0)
-
-o = olist[0]
-
-line = sys.stdin.readline().strip()
-due = None
-if isinstance(o, Todo):
-    if not line[:6] == "::: <|":
-        print("Error: Due date line is corrupt!", file=sys.stderr)
-        sys.exit(1)
-    lst = line.split(" ")
-    due = True
-    if len(lst) >= 3:
-      try:
-        duedate = datetime.strptime(lst[2], "%Y-%m-%d").date()
-        due = duedate
-      except Exception as e:
-        pass
-    line = sys.stdin.readline().strip()
-
-if not line[:2] == "# ":
-    print("Error: Summary line is corrupt!", file=sys.stderr)
-    sys.exit(1)
-summary = line[2:]
-
-line = sys.stdin.readline().strip()
-if not line[:2] == "> " and not line == ">":
-    categories = []
-else:
-    categories = line[2:].split(",")
-    line = sys.stdin.readline().strip()
-
-if not line == "":
-    print("Error: Missing separating line!", file=sys.stderr)
-    sys.exit(1)
-
-description = sys.stdin.read()
-
-# Update ical
-if due:
-    if isinstance(due, date):
-        o.DUE = due 
-    elif "DUE" in o.keys():
-        o.pop("DUE")
-o["SUMMARY"] = summary
-o.categories = categories
-o["DESCRIPTION"] = description.strip()
-o.LAST_MODIFIED = datetime.utcnow()
-seq = o["SEQUENCE"] if "SEQUENCE" in o.keys() else 0
-o["SEQUENCE"] = seq + 1
-
-# Print
-print(ical.to_ical().decode().replace("\r\n", "\n"))
-' "$@"
-}
-
-__ical2json() {
-  python3 -c '
-import sys
-import json
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from icalendar.cal import Calendar, Todo
-
-input_data = sys.stdin.read()
-try:
-    ical = Calendar.from_ical(input_data)
-except Exception as e:
-    print(f"Failed to read ical file: {e}", file=sys.stderr)
-    sys.exit(1)
-
-olist = [component for component in ical.walk(select=lambda c:c.name in ["VJOURNAL", "VTODO"])]
-if len(olist) == 0:
-    sys.exit(0)
-
-o = olist[0]
-
-local_tz = ZoneInfo("localtime")
-data = {
-    "summary": o.get("SUMMARY"),
-    "description": o.get("DESCRIPTION") if "DESCRIPTION" in o.keys() else "",
-    "categories": o.categories,
-    "class": o.get("CLASS"),
-    "created": str(o.DTSTAMP.astimezone(local_tz)) if o.DTSTAMP else "",
-    "last_modified": str(o.LAST_MODIFIED.astimezone(local_tz)) if o.LAST_MODIFIED else "",
-    "start": str(
-        o.DTSTART.astimezone(local_tz)
-        if isinstance(o.DTSTART, datetime)
-        else o.DTSTART or ""
-    ),
-}
-
-if isinstance(o, Todo):
-    data["due"] = str(o.DUE) if o.DUE else ""
-
-print(json.dumps(data))'
-}
-
-__date_not_in_future() {
-  date_target=$(date -d "$1" +%s)
-  date_today=$(date -d "00:00" +%s)
-  date_delta=$((date_target - date_today))
-  if [ "$date_delta" -le 0 ]; then
-    echo 1
-  fi
-}
-
-__date_to_expression() {
-  date_target=$(date -d "$1" +%s)
-  date_today=$(date -d "00:00" +%s)
-  date_delta=$(((date_target - date_today) / 86400))
-  date_expr=$date_delta
-  if [ "$date_delta" -eq 0 ]; then
-    date_expr="today"
-  elif [ "$date_delta" -eq -1 ]; then
-    date_expr="yesterday"
-  elif [ "$date_delta" -eq 1 ]; then
-    date_expr="tomorrow"
-  elif [ "$date_delta" -lt -1 ] && [ "$date_delta" -ge -7 ]; then
-    date_expr="last $(date -d "$1" +%A)"
-  elif [ "$date_delta" -gt 1 ] && [ "$date_delta" -le 7 ]; then
-    date_expr="next $(date -d "$1" +%A)"
-  else
-    date_expr=$(date -d "$1" +%x)
-  fi
-  echo "$date_expr"
-}
-
-# Process each file
-# This function takes two arguments:
+### AWK SCRIPTS
+AWK_ALTERTODO='# Increase/decrease priority, or toggle completed status
 #
-# @param string: Path to ics file
-# @param string: Maximum length of filenames (for padding purposes)
-__filepath_to_searchline() {
-  filepath="$1"
-  collection=$(dirname "$filepath" | sed "s|^$ROOT/*||")
-  filename=$(basename "$filepath")
-
-  # Color support
-  GREEN=$(printf '\033[1;32m')
-  RED=$(printf '\033[1;31m')
-  WHITE=$(printf '\033[1;97m')
-  FAINT=$(printf '\033[2m')
-  OFF=$(printf '\033[m')
-
-  # Parse file
-  summary=$(grep '^SUMMARY:' "$filepath" | cut -d ':' -f 2 | sed 's/\\,/,/g')
-  categories=$(grep '^CATEGORIES:' "$filepath" | cut -d ':' -f 2)
-  dtstamp=$(grep '^LAST-MODIFIED:' "$filepath" | cut -d ':' -f 2)
-  if [ -z "$dtstamp" ]; then
-    dtstamp=$(grep '^DTSTAMP:' "$filepath" | cut -d ':' -f 2)
-  fi
-  dtstart=$(grep '^DTSTART' "$filepath" | grep -oE '[0-9]{8}')
-  due=$(grep '^DUE' "$filepath" | grep -oE '[0-9]{8}')
-  priority=$(grep '^PRIORITY:' "$filepath" | cut -d ':' -f 2)
-  task=$(grep '^BEGIN:VTODO' "$filepath")
-  completed=$(grep '^STATUS:COMPLETED' "$filepath")
-
-  # Parse date
-  if [ -n "$dtstart" ]; then
-    emoji="📘"
-    date_expr=$(__date_to_expression "$dtstart")
-  else
-    emoji="🗒️"
-    date_expr=""
-  fi
-
-  # Check if this is a task
-  if [ -n "$task" ]; then
-    emoji="🔲"
-    if [ -n "$completed" ]; then
-      emoji="✅"
-    fi
-  fi
-
-  # Check Priority
-  if [ -n "$priority" ] && [ "$priority" -gt 0 ]; then
-    prioritymsg="❗($priority) "
-    priority=$((10 - priority))
-  else
-    prioritymsg=""
-    priority=0
-  fi
-
-  # Check due date
-  if [ -n "$due" ]; then
-    date_expr=$(__date_to_expression "$due")
-  fi
-  date_expr=$(printf "%12s" "$date_expr")
-  # Color date
-  notinfuture=$(__date_not_in_future "$due")
-  if [ -n "$notinfuture" ] && [ -n "$due" ]; then
-    date_expr="$RED$date_expr$OFF"
-    summary_color="$RED"
-  else
-    date_expr="$WHITE$date_expr$OFF"
-    summary_color="$GREEN"
-  fi
-
-  # Print line
-  echo "$priority $dtstamp $collection $date_expr $emoji $prioritymsg$summary_color$summary$OFF $FAINT$categories$OFF$LONGSPACE/$filename"
-  #echo "$priority $dtstamp $filepathpad $date_expr $emoji $prioritymsg$summary_color$summary$OFF $FAINT$categories$OFF"
+# If `delta` is specified using `-v`, then the priority value is increased by
+# `delta.` If `delta` is unspecified (or equal to 0), then the completeness
+# status is toggled.
+BEGIN { 
+  FS=":";
+  zulu = strftime("%Y%m%dT%H%M%SZ", systime(), 1);
+  delta = delta + 0; # cast as integer
 }
+/^END:VTODO/ && inside     { 
+  # Print sequence and last-modified, if not yet printed
+  if (!seq) print "SEQUENCE:1";
+  if (!lm) print "LAST-MODIFIED:" zulu;
+
+  # Print priority
+  prio = prio ? prio + delta : 0 + delta;
+  prio = prio < 0 ? 0 : prio;
+  prio = prio > 9 ? 9 : prio;
+  print "PRIORITY:" prio;
+
+  # Print status (toggle if needed)
+  bit_toggle = delta ? 0 : 1;
+  percent = xor(completed, bit_toggle) ? 100 : 0;
+  status = xor(completed, bit_toggle) ? "COMPLETED" : "NEEDS-ACTION";
+  print "STATUS:" status
+  print "PERCENT-COMPLETE:" percent
+
+  # print rest
+  inside = ""; 
+  print $0;
+  next
+}
+/^BEGIN:VTODO/                { inside = 1;    print;                       next }
+/^SEQUENCE/ && inside         { seq = 1;       print "SEQUENCE:" $2+1;      next }
+/^LAST-MODIFIED/ && inside    { lm = 1;        print "LAST-MODIFIED:" zulu; next }
+/^PRIORITY:/ && inside        { prio = $2;                                  next }
+/^STATUS:COMPLETED/ && inside { completed = 1;                              next }
+/^PERCENT-COMPLETE/ && inside {                                             next } # ignore, we take STATUS:COMPLETED as reference
+{ print }'
+
+AWK_EXPORT='function getcontent(content_line, prop)
+{
+  return substr(content_line[prop], index(content_line[prop], ":") + 1);
+}
+
+function storetext_line(content_line, c, prop)
+{
+  c[prop] = getcontent(content_line, prop);
+  gsub("\\\\n",    "\n", c[prop]);
+  gsub("\\\\N",    "\n", c[prop]);
+  gsub("\\\\,",    ",",  c[prop]);
+  gsub("\\\\;",    ";",  c[prop]);
+  gsub("\\\\\\\\", "\\", c[prop]);
+}
+
+BEGIN                                   { FS = "[:;]"; }
+/^BEGIN:(VJOURNAL|VTODO)/               { type = $2 }
+/^END:/ && $2 == type                   { exit }
+/^(CATEGORIES|DESCRIPTION|SUMMARY|DUE)/ { prop = $1; content_line[prop] = $0;                               next; }
+/^[^ ]/ && prop                         { prop = "";                                                        next; }
+/^ / && prop                            {            content_line[prop] = content_line[prop] substr($0, 2); next; }
+
+END {
+  if (!type) {
+    exit
+  }
+  # Process content lines
+  storetext_line(content_line, c, "CATEGORIES" );
+  storetext_line(content_line, c, "DESCRIPTION");
+  storetext_line(content_line, c, "SUMMARY"    );
+  storetext_line(content_line, c, "DUE"        );
+  # Print
+  if (c["DUE"])
+    print "::: <| " substr(c["DUE"], 1, 4) "-" substr(c["DUE"], 5, 2) "-" substr(c["DUE"], 7, 2);
+  print "# " c["SUMMARY"];
+  print "> " c["CATEGORIES"];
+  print "";
+  print c["DESCRIPTION"];
+}'
+
+AWK_GET='# print content of field `field`
+BEGIN                     { FS = ":"; regex = "^" field; }
+/^BEGIN:(VJOURNAL|VTODO)/ { type = $2 }
+/^END:/ && $2 == type     { exit }
+$0 ~ field                { content = $0;                    next; }
+/^ / && content           { content = content substr($0, 2); next; }
+/^[^ ]/ && content        { exit }
+END {
+  if (!type) { exit }
+  # Process content line
+  content = substr(content, index(content, ":") + 1);
+  gsub("\\\\n",    "\n", content);
+  gsub("\\\\N",    "\n", content);
+  gsub("\\\\,",    ",",  content);
+  gsub("\\\\;",    ";",  content);
+  gsub("\\\\\\\\", "\\", content);
+  print content;
+}'
+
+AWK_LIST='# awk script to generate summary line for iCalendar VJOURNAL and VTODO entries
+#
+# See https://datatracker.ietf.org/doc/html/rfc5545 for the RFC 5545 that
+# describes iCalendar, and its syntax
+
+function getcontent(content_line, prop)
+{
+  return substr(content_line[prop], index(content_line[prop], ":") + 1);
+}
+
+function storetext_line(content_line, c, prop)
+{
+  c[prop] = getcontent(content_line, prop);
+  gsub("\\\\n",    " ",  c[prop]);
+  gsub("\\\\N",    " ",  c[prop]);
+  gsub("\\\\,",    ",",  c[prop]);
+  gsub("\\\\;",    ";",  c[prop]);
+  gsub("\\\\\\\\", "\\", c[prop]);
+  #gsub(" ",    "_",  c[prop]);
+}
+
+function storeinteger(content_line, c, prop)
+{
+  c[prop] = getcontent(content_line, prop);
+  c[prop] = c[prop] ? c[prop] : 0;
+}
+
+function storedatetime(content_line, c, prop)
+{
+  c[prop] = getcontent(content_line, prop);
+}
+
+function storedate(content_line, c, prop)
+{
+  c[prop] = substr(getcontent(content_line, prop), 1, 8);
+}
+
+function formatdate(date, today, todaystamp,       ts, ts_y, ts_m, ts_d, delta)
+{
+  ts_y = substr(date, 1, 4);
+  ts_m = substr(date, 5, 2);
+  ts_d = substr(date, 7);
+  ts = mktime(ts_y " " ts_m " " ts_d " 00 00 00");
+  delta = (ts - todaystamp) / 86400;
+  if (delta >= 0 && delta < 1) {
+    return "         today";
+  }
+  if (delta >= 1 && delta < 2) {
+    return "      tomorrow";
+  }
+  if (delta >= 2 && delta < 3) {
+    return "   in two days";
+  }
+  if (delta >= 3 && delta < 4) {
+    return " in three days";
+  }
+  if (delta < 0 && delta >= -1) {
+    return "     yesterday";
+  }
+  if (delta < -1 && delta >= -2) {
+    return "  two days ago";
+  }
+  if (delta < -2 && delta >= -3) {
+    return "three days ago";
+  }
+  return "    " substr(date, 1, 4) "-" substr(date, 5, 2) "-" substr(date, 7);
+}
+
+BEGIN {
+  # We require the following variables to be set using -v
+  # collection_lables: ;-delimited collection=label strings
+  # flag_open:      symbol for open to-dos
+  # flag_completed: symbol for completed to-dos
+  # flag_journal:   symbol for journal entries
+  # flag_note:      symbol for note entries
+
+  FS = "[:;]";
+  # Collections
+  split(collection_labels, mapping, ";");
+  for (map in mapping)
+  {
+    split(mapping[map], m, "=");
+    collection2label[m[1]] = m[2];
+  }
+  # Colors
+  GREEN = "\033[1;32m";
+  RED = "\033[1;31m";
+  WHITE = "\033[1;97m";
+  CYAN = "\033[1;36m";
+  FAINT = "\033[2m";
+  OFF = "\033[m";
+
+  # For date comparision
+  today = strftime("%Y%m%d");
+  todaystamp = mktime(substr(today, 1, 4) " " substr(today, 5, 2) " " substr(today, 7) " 00 00 00");
+}
+
+# Reset variables
+BEGINFILE {
+  type = "";
+  prop = "";
+  delete content_line;
+  delete c;
+
+}
+
+/^BEGIN:(VJOURNAL|VTODO)/ {
+  type = $2
+}
+
+/^END:/ && $2 == type {
+  nextfile
+}
+
+/^(CATEGORIES|DESCRIPTION|PRIORITY|STATUS|SUMMARY|COMPLETED|DUE|DTSTART|DURATION|CREATED|DTSTAMP|LAST-MODIFIED)/ {
+  prop = $1;
+  content_line[prop] = $0;
+  next;
+}
+/^[^ ]/ && prop {
+  prop = "";
+  next;
+}
+/^ / && prop {
+  content_line[prop] = content_line[prop] substr($0, 2); 
+  next; 
+}
+
+ENDFILE {
+  if (!type) {
+    exit
+  }
+  # Process content lines
+  storetext_line(content_line, c, "CATEGORIES"   );
+  storetext_line(content_line, c, "DESCRIPTION"  );
+  storeinteger(  content_line, c, "PRIORITY"     );
+  storetext_line(content_line, c, "STATUS"       );
+  storetext_line(content_line, c, "SUMMARY"      );
+  storedatetime( content_line, c, "COMPLETED"    );
+  storedate(     content_line, c, "DUE"          );
+  storedate(     content_line, c, "DTSTART"      );
+  storedatetime( content_line, c, "DURATION"     );
+  storedatetime( content_line, c, "CREATED"      );
+  storedatetime( content_line, c, "DTSTAMP"      );
+  storedatetime( content_line, c, "LAST-MODIFIED");
+
+  # Priority field, primarly used for sorting
+  priotext = "";
+  prio = 0;
+  if (c["PRIORITY"] > 0)
+  {
+    priotext = "❗(" c["PRIORITY"] ") ";
+    prio = 10 - c["PRIORITY"];
+  }
+
+  # Last modification/creation time stamp, used for sorting
+  # LAST-MODIFIED: Optional field for VTODO and VJOURNAL entries, date-time in
+  #                UTC time format
+  # DTSTAMP:       mandatory field in VTODO and VJOURNAL, date-time in UTC time
+  #                format
+  mod = c["LAST-MODIFIED"] ? c["LAST-MODIFIED"] : c["DTSTAMP"];
+
+  # Collection name
+  depth = split(FILENAME, path, "/");
+  collection = depth > 1 ? path[depth-1] : "";
+  collection = collection in collection2label ? collection2label[collection] : collection;
+
+  # Date field. For VTODO entries, we show the due date, for journal entries,
+  # the associated date.
+  datecolor = CYAN;
+  summarycolor = GREEN;
+
+  if (type == "VTODO")
+  {
+    # Either DUE or DURATION may appear. If DURATION appears, then also DTSTART
+    d = c["DUE"] ? c["DUE"] : 
+      (c["DURATION"] ? c["DTSTART"] " for " c["DURATION"] : "");
+    if (d && d <= today && c["STATUS"] != "COMPLETED")
+    {
+      datecolor = RED;
+      summarycolor = RED;
+    }
+  } else {
+    d = c["DTSTART"];
+  }
+  d = d ? formatdate(d, today, todaystamp       ts, ts_y, ts_m, ts_d, delta) : "              ";
+
+  # flag: - "journal"   for VJOURNAL with DTSTART
+  #       - "note"      for VJOURNAL without DTSTART
+  #       - "completed" for VTODO with c["STATUS"] == COMPLETED
+  #       - "open"      for VTODO with c["STATUS"] != COMPLETED
+  if (type == "VTODO")
+    flag = c["STATUS"] == "COMPLETED" ? flag_completed : flag_open;
+  else
+    flag = c["DTSTART"] ? flag_journal : flag_note;
+  
+  # summary
+  # c["SUMMARY"]
+  summary = c["SUMMARY"] ? c["SUMMARY"] : " "
+
+  # categories
+  categories = c["CATEGORIES"] ? c["CATEGORIES"] : " "
+
+  # filename
+  # FILENAME
+
+  print prio,
+        mod,
+        collection,
+        datecolor d OFF,
+        flag,
+        priotext summarycolor summary OFF,
+        WHITE categories OFF,
+        "                                                                                                                                                                    " FAINT FILENAME OFF;
+}'
+
+AWK_NEW='function escape_categories(str)
+{
+  gsub("\\\\", "\\\\", str);
+  gsub(";",  "\\\\;",    str);
+}
+
+function escape(str)
+{
+  escape_categories(str)
+  gsub(",",  "\\\\,",    str);
+}
+
+function print_fold(nameparam, content,    i, s)
+{
+  i = 74 - length(nameparam);
+  s = substr(content, 1, i);
+  print nameparam s;
+  s = substr(content, i+1, 73);
+  i = i + 73;
+  while (s)
+  {
+    print " " s;
+    s = substr(content, i+1, 73);
+    i = i + 73;
+  }
+}
+
+BEGIN { 
+  FS=":"; 
+  type = "VJOURNAL"; 
+  zulu = strftime("%Y%m%dT%H%M%SZ", systime(), 1);
+}
+desc { desc = desc "\\n" $0; next; }
+{
+  if (substr($0, 1, 6) == "::: |>")
+  {
+    start = substr(zulu, 1, 8);
+    getline;
+  }
+  if (substr($0, 1, 6) == "::: <|")
+  {
+    type = "VTODO"
+    due = substr($0, 8);
+    getline;
+  }
+  summary = substr($0, 1, 2) != "# " ? "" : substr($0, 3);
+  getline;
+  categories = substr($0, 1, 1) != ">" ? "" : substr($0, 3);
+  getline; # This line should be empty
+  getline; # First line of description
+  desc = $0;
+  next;
+}
+END {
+  # Sanitize input
+  if (due) {
+    # Use command line `date` for parsing
+    cmd = "date -d \"" due "\" +\"%Y%m%d\"";
+    cmd | getline res
+    due = res ? res : ""
+  }
+  escape(summary);
+  escape(desc);
+  escape_categories(categories);
+
+  # print ical
+  print "BEGIN:VCALENDAR";
+  print "VERSION:2.0";
+  print "CALSCALE:GREGORIAN";
+  print "PRODID:-//fab//awk//EN";
+  print "BEGIN:" type;
+  print "DTSTAMP:" zulu;
+  print "UID:" uid;
+  print "CLASS:PRIVATE";
+  print "CREATED:" zulu;
+  print "SEQUENCE:1";
+  print "LAST-MODIFIED:" zulu;
+  if (type == "VTODO")
+  {
+    print "STATUS:NEEDS-ACTION";
+    print "PERCENT-COMPLETE:0";
+    if (due)
+      print "DUE;VALUE=DATE:" due; 
+  }
+  else
+  {
+    print "STATUS:FINAL";
+    if (start)
+      print "DTSTART;VALUE=DATE:" start;
+  }
+  if (summary)    print_fold("SUMMARY:",     summary,       i, s);
+  if (categories) print_fold("CATEGORIES:",  categories,    i, s);
+  if (desc)       print_fold("DESCRIPTION:", desc,          i, s);
+  print "END:" type;
+  print "END:VCALENDAR"
+}'
+
+AWK_UPDATE='function getcontent(content_line, prop)
+{
+  return substr(content_line[prop], index(content_line[prop], ":") + 1);
+}
+
+function escape_categories(str)
+{
+  gsub("\\\\", "\\\\", str);
+  gsub(";",  "\\\\;",    str);
+}
+
+function escape(str)
+{
+  escape_categories(str)
+  gsub(",",  "\\\\,",    str);
+}
+
+function print_fold(nameparam, content,    i, s)
+{
+  i = 74 - length(nameparam);
+  s = substr(content, 1, i);
+  print nameparam s;
+  s = substr(content, i+1, 73);
+  i = i + 73;
+  while (s)
+  {
+    print " " s;
+    s = substr(content, i+1, 73);
+    i = i + 73;
+  }
+}
+
+BEGIN { 
+  FS=":";
+  zulu = strftime("%Y%m%dT%H%M%SZ", systime(), 1);
+}
+
+ENDFILE { 
+  if (NR == FNR)
+  {
+    # Sanitize input
+    if (due) {
+      # Use command line `date` for parsing
+      cmd = "date -d \"" due "\" +\"%Y%m%d\"";
+      cmd | getline res
+      due = res ? res : ""
+    }
+    escape(summary);
+    escape(desc);
+    escape_categories(categories);
+  }
+}
+
+NR == FNR && desc { desc = desc "\\n" $0; next; }
+NR == FNR {
+  if (substr($0, 1, 6) == "::: <|")
+  {
+    due = substr($0, 8);
+    getline;
+  }
+  summary = substr($0, 1, 2) != "# " ? "" : substr($0, 3);
+  getline;
+  categories = substr($0, 1, 1) != ">" ? "" : substr($0, 3);
+  getline; # This line should be empty
+  getline; # First line of description
+  desc = $0;
+  next;
+}
+
+/^BEGIN:(VJOURNAL|VTODO)/                                     { type = $2; print; next }
+/^X-ALT-DESC/ && type                                         { next } # drop this alternative description
+/^ / && type                                                  { next } # drop this folded line (the only content with folded lines will be updated)
+/^(DUE|SUMMARY|CATEGORIES|DESCRIPTION|LAST-MODIFIED)/ && type { next } # skip for now, we will write updated fields at the end
+/^SEQUENCE/ && type                                           { seq = $2; next } # store sequence number and skip
+/^END:/ && type == $2 {
+  seq = seq ? seq + 1 : 1;
+  print "SEQUENCE:" seq;
+  print "LAST-MODIFIED:" zulu;
+  if (due) print "DUE;VALUE=DATE:" due;
+  print_fold("SUMMARY:",     summary,       i, s);
+  print_fold("CATEGORIES:",  categories,    i, s);
+  print_fold("DESCRIPTION:", desc,          i, s);
+  type = "";
+}
+{ print }'
+### END OF AWK SCRIPTS
 
 __lines() {
-  lines=$(find "$ROOT" -type f -name '*.ics' |
-    while IFS= read -r file; do
-      __filepath_to_searchline "$file"
-    done)
-
-  # Decorate
-  lines=$(echo "$lines" | eval "$SED_COLLECTIONNAMES_TO_LABELS")
-
-  # Sort and cut off irreleant part
-  lines=$(echo "$lines" | sort -g -r | cut -d ':' -f 2-)
-
-  echo "$lines"
+  find "$ROOT" -type f -name '*.ics' -print0 | xargs -0 -P 0 \
+    awk \
+    -v collection_labels="$COLLECTION_LABELS" \
+    -v flag_open="🔲" \
+    -v flag_completed="✅" \
+    -v flag_journal="📘" \
+    -v flag_note="🗒️" \
+    "$AWK_LIST" |
+    sort -g -r |
+    cut -d ' ' -f 3-
 }
 
 __filepath_from_selection() {
-  filename=$(echo "$1" | rev | cut -d "/" -f 1 | rev)
-  dirname=$(echo "$1" | cut -d " " -f 1 | eval "$SED_COLLECTIONLABELS_TO_NAMES" | sed "s|^|$ROOT|")
-  echo "$dirname/$filename"
+  echo "$1" | grep -o ' \{50\}.*$' | xargs
 }
 
 # Program starts here
-
 if [ "${1:-}" = "--help" ]; then
   echo "Usage: $0 [OPTION]"
   echo ""
@@ -503,33 +553,56 @@ if [ "${1:-}" = "--help" ]; then
   echo "  --toggle-completed <selection>      Toggle completion flag of task"
   exit
 fi
+
 # Command line arguments to be self-contained
 # Generate preview of file from selection
 if [ "${1:-}" = "--preview" ]; then
-  vjfile=$(__filepath_from_selection "$2")
-  __ical2json <"$vjfile" | jq -r ".description" | batcat --color=always --style=numbers --language=md
+  file=$(__filepath_from_selection "$2")
+  awk -v field="DESCRIPTION" "$AWK_GET" "$file" |
+    batcat --color=always --style=numbers --language=md
   exit
 fi
 # Delete file from selection
 if [ "${1:-}" = "--delete" ]; then
-  vjfile=$(__filepath_from_selection "$2")
-  rm -i "$vjfile"
+  file=$(__filepath_from_selection "$2")
+  summary=$(awk -v field="SUMMARY" "$AWK_GET" "$file")
+  while true; do
+    printf "Do you want to delete the entry with the title \"%s\"? " "$summary" >/dev/tty
+    read -r yn
+    case $yn in
+    "yes")
+      rm -v "$file"
+      break
+      ;;
+    "no")
+      break
+      ;;
+    *)
+      echo "Please answer \"yes\" or \"no\"." >/dev/tty
+      ;;
+    esac
+  done
 fi
 # Generate new entry
 if [ "${1:-}" = "--new" ]; then
-  collection=$(echo "$LABLES" | fzf \
-    --margin 20% \
-    --prompt="Select collection> ")
+  label=$(printf "%s" "$COLLECTION_LABELS" |
+    awk 'BEGIN { FS="="; RS=";"; } {print $2}' |
+    fzf \
+      --margin 20% \
+      --prompt="Select collection> ")
+
+  collection=$(printf "%s" "$COLLECTION_LABELS" |
+    awk -v label="$label" 'BEGIN { FS="="; RS=";"; } $2 == label {print $1}')
   file=""
   while [ -f "$file" ] || [ -z "$file" ]; do
     uuid=$(uuidgen)
-    file=$(__filepath_from_selection "$collection /$uuid.ics")
+    file="$ROOT/$collection/$uuid.ics"
   done
   tmpmd=$(mktemp --suffix='.md')
   tmpsha="$tmpmd.sha"
   {
     echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
-    echo "::: <| <!-- specify the due date for to-dos, can be empty -->"
+    echo "::: <| <!-- specify the due date for to-dos, can be empty, a date string, or even \"next Sunday\" -->"
     echo "# <!-- write summary here -->"
     echo "> <!-- comma-separated list of categories -->"
     echo ""
@@ -542,34 +615,31 @@ if [ "${1:-}" = "--new" ]; then
   # Update if changes are detected
   if ! sha1sum -c "$tmpsha" >/dev/null 2>&1; then
     tmpfile="$tmpmd.ics"
-    tmpferr="$tmpmd.err"
-    if __vicalnew "$uuid" <"$tmpmd" >"$tmpfile" 2>"$tmpferr"; then
-      mv "$tmpfile" "$file"
-    else
-      rm "$tmpfile"
-      less "$tmpferr"
-    fi
-    rm "$tmpferr"
+    awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"
+    mv "$tmpfile" "$file"
   fi
   rm "$tmpmd" "$tmpsha"
 fi
 # Toggle completed flag
 if [ "${1:-}" = "--toggle-completed" ]; then
-  vtfile=$(__filepath_from_selection "$2")
-  vtfile_tmp=$(mktemp)
-  __vtodotogglecompleted "$vtfile" >"$vtfile_tmp" && mv "$vtfile_tmp" "$vtfile" || rm "$vtfile_tmp"
+  file=$(__filepath_from_selection "$2")
+  tmpfile=$(mktemp)
+  awk "$AWK_ALTERTODO" "$file" >"$tmpfile"
+  mv "$tmpfile" "$file"
 fi
 # Increase priority
 if [ "${1:-}" = "--increase-priority" ]; then
-  vtfile=$(__filepath_from_selection "$2")
-  vtfile_tmp=$(mktemp)
-  __vtodopriority "$vtfile" "1" >"$vtfile_tmp" && mv "$vtfile_tmp" "$vtfile" || rm "$vtfile_tmp"
+  file=$(__filepath_from_selection "$2")
+  tmpfile=$(mktemp)
+  awk -v delta="1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
+  mv "$tmpfile" "$file"
 fi
 # Decrease priority
 if [ "${1:-}" = "--decrease-priority" ]; then
-  vtfile=$(__filepath_from_selection "$2")
-  vtfile_tmp=$(mktemp)
-  __vtodopriority "$vtfile" "-1" >"$vtfile_tmp" && mv "$vtfile_tmp" "$vtfile" || rm "$vtfile_tmp"
+  file=$(__filepath_from_selection "$2")
+  tmpfile=$(mktemp)
+  awk -v delta="-1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
+  mv "$tmpfile" "$file"
 fi
 if [ "${1:-}" = "--reload" ]; then
   __lines
@@ -613,7 +683,8 @@ selection=$(
     --no-hscroll \
     --ellipsis='' \
     --preview="$0 --preview {}" \
-    --bind="ctrl-d:become($0 --delete {})" \
+    --bind="ctrl-r:reload-sync($0 --reload)" \
+    --bind="ctrl-alt-d:become($0 --delete {})" \
     --bind="ctrl-x:become($0 --toggle-completed {})" \
     --bind="alt-up:become($0 --increase-priority {})" \
     --bind="alt-down:become($0 --decrease-priority {})" \
@@ -622,8 +693,7 @@ selection=$(
     --bind="alt-1:change-query(📘)" \
     --bind="alt-2:change-query(🗒️)" \
     --bind="alt-3:change-query(✅ | 🔲)" \
-    --bind="ctrl-s:execute($SYNC_CMD)" \
-    --bind="ctrl-r:reload-sync($0 --reload)"
+    --bind="ctrl-s:execute($SYNC_CMD)"
 )
 if [ -z "$selection" ]; then
   return 0
@@ -632,40 +702,25 @@ fi
 file=$(__filepath_from_selection "$selection")
 
 if [ ! -f "$file" ]; then
-  echo "ERROR: File '$file' does not exist!"
+  echo "ERROR: File '$file' does not exist!" >/dev/tty
   return 1
 fi
-
-# Parse vjournal file and save as json
-filejson=$(mktemp)
-__ical2json <"$file" >"$filejson"
 
 # Prepare file to be edited
 filetmp=$(mktemp --suffix='.md')
 filesha="$filetmp.sha"
-if jq -e '.due' "$filejson"; then
-  due=$(jq -r '.due' "$filejson")
-  echo "::: <| $due" >"$filetmp"
-fi
-summary=$(jq -r '.summary' "$filejson")
-categories=$(jq -r '.categories | join(",")' "$filejson")
-{
-  echo "# $summary"
-  echo "> $categories"
-  echo ""
-  jq -r '.description' "$filejson"
-} >>"$filetmp"
-rm "$filejson"
+awk "$AWK_EXPORT" "$file" >"$filetmp"
 sha1sum "$filetmp" >"$filesha"
 
 # Open in editor
-$EDITOR "$filetmp"
+$EDITOR "$filetmp" >/dev/tty
 
 # Update only if changes are detected
 if ! sha1sum -c "$filesha" >/dev/null 2>&1; then
-  echo "Uh... chages detected!"
-  vj_file_new="$filetmp.ics"
-  __icalupdate "$file" <"$filetmp" >"$vj_file_new" && mv "$vj_file_new" "$file" || rm "$vj_file_new"
+  echo "Uh... chages detected!" >/dev/tty
+  file_new="$filetmp.ics"
+  awk "$AWK_UPDATE" "$filetmp" "$file" >"$file_new"
+  mv "$file_new" "$file"
 fi
 rm "$filetmp" "$filesha"
 
