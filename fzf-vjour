@@ -33,9 +33,10 @@ BEGIN {
   print "PRIORITY:" prio;
 
   # Print status (toggle if needed)
+  bit_status = status == "COMPLETED" ? 1 : 0;
   bit_toggle = delta ? 0 : 1;
-  percent = xor(completed, bit_toggle) ? 100 : 0;
-  status = xor(completed, bit_toggle) ? "COMPLETED" : "NEEDS-ACTION";
+  percent = xor(bit_status, bit_toggle) ? 100 : 0;
+  status = xor(bit_status, bit_toggle) ? "COMPLETED" : "NEEDS-ACTION";
   print "STATUS:" status
   print "PERCENT-COMPLETE:" percent
 
@@ -48,7 +49,7 @@ BEGIN {
 /^SEQUENCE/ && inside         { seq = 1;       print "SEQUENCE:" $2+1;      next }
 /^LAST-MODIFIED/ && inside    { lm = 1;        print "LAST-MODIFIED:" zulu; next }
 /^PRIORITY:/ && inside        { prio = $2;                                  next }
-/^STATUS:COMPLETED/ && inside { completed = 1;                              next }
+/^STATUS/ && inside           { status = $2;                                next }
 /^PERCENT-COMPLETE/ && inside {                                             next } # ignore, we take STATUS:COMPLETED as reference
 { print }'
 
