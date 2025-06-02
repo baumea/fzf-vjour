@@ -10,7 +10,8 @@ with a CalDav server, such as [Radicale](https://radicale.org/), and a synchroni
 
 Installation
 ------------
-Just copy the file to your preferred location, e.g., `~/.local/bin`, and make it executable.
+Download the file `fzf-vjour` from the [latest release](https://github.com/baumea/fzf-vjour/releases/latest), or run `./scripts/build.sh`, then
+copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
 
 ### Requirements
 This is a POSIX script with inline `awk` elements.
