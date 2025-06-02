@@ -15,7 +15,8 @@ copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it e
 
 ### Requirements
 This is a POSIX script with inline `awk` elements.
-Make sure you have [fzf](https://github.com/junegunn/fzf) and [batcat](https://github.com/sharkdp/bat).
+Make sure you have [fzf](https://github.com/junegunn/fzf) installed.
+I also suggest to install [batcat](https://github.com/sharkdp/bat) for colorful previews.
 
 Configuration
 --------------

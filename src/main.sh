@@ -2,13 +2,36 @@
 
 set -eu
 
+err() {
+  echo "❌ $1" >/dev/tty
+}
 # Read configuration
 # shellcheck source=/dev/null
-. "$HOME/.config/fzf-vjour/config"
-if [ -z "$ROOT" ] || [ -z "$SYNC_CMD" ] || [ -z "$COLLECTION_LABELS" ]; then
-  echo "Failed to get configuration." >/dev/tty
+CONFIGFILE="$HOME/.config/fzf-vjour/config"
+if [ ! -f "$CONFIGFILE" ]; then
+  err "Configuration '$CONFIGFILE' not found."
   exit 1
 fi
+. "$CONFIGFILE"
+if [ -z "${ROOT:-}" ] || [ -z "${SYNC_CMD:-}" ] || [ -z "${COLLECTION_LABELS:-}" ]; then
+  err "Configuration is incomplete."
+  exit 1
+fi
+
+# Tools
+if command -v "fzf" >/dev/null; then
+  FZF="fzf"
+else
+  err "Did not find the command-line fuzzy finder fzf."
+  exit 1
+fi
+if command -v "bat" >/dev/null; then
+  CAT="bat"
+elif command -v "batcat" >/dev/null; then
+  CAT="batcat"
+fi
+CAT=${CAT:+$CAT --color=always --style=numbers --language=md}
+CAT=${CAT:-cat}
 
 ### AWK SCRIPTS
 AWK_ALTERTODO=$(
@@ -96,7 +119,7 @@ fi
 if [ "${1:-}" = "--preview" ]; then
   file=$(__filepath_from_selection "$2")
   awk -v field="DESCRIPTION" "$AWK_GET" "$file" |
-    batcat --color=always --style=numbers --language=md
+    $CAT
   exit
 fi
 # Delete file from selection
@@ -104,7 +127,7 @@ if [ "${1:-}" = "--delete" ]; then
   file=$(__filepath_from_selection "$2")
   summary=$(awk -v field="SUMMARY" "$AWK_GET" "$file")
   while true; do
-    printf "Do you want to delete the entry with the title \"%s\"? " "$summary" >/dev/tty
+    printf "Do you want to delete the entry with the title \"%s\"? (yes/no)" "$summary" >/dev/tty
     read -r yn
     case $yn in
     "yes")
@@ -124,7 +147,7 @@ fi
 if [ "${1:-}" = "--new" ]; then
   label=$(printf "%s" "$COLLECTION_LABELS" |
     awk 'BEGIN { FS="="; RS=";"; } {print $2}' |
-    fzf \
+    $FZF \
       --margin 20% \
       --prompt="Select collection> ")
 
@@ -136,7 +159,6 @@ if [ "${1:-}" = "--new" ]; then
     file="$ROOT/$collection/$uuid.ics"
   done
   tmpmd=$(mktemp --suffix='.md')
-  tmpsha="$tmpmd.sha"
   {
     echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
     echo "::: <| <!-- specify the due date for to-dos, can be empty, a date string, or even \"next Sunday\" -->"
@@ -144,18 +166,18 @@ if [ "${1:-}" = "--new" ]; then
     echo "> <!-- comma-separated list of categories -->"
     echo ""
   } >"$tmpmd"
-  sha1sum "$tmpmd" >"$tmpsha"
+  checksum=$(cksum "$tmpmd")
 
   # Open in editor
   $EDITOR "$tmpmd" >/dev/tty
 
   # Update if changes are detected
-  if ! sha1sum -c "$tmpsha" >/dev/null 2>&1; then
+  if [ "$checksum" != "$(cksum "$tmpmd")" ]; then
     tmpfile="$tmpmd.ics"
     awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"
     mv "$tmpfile" "$file"
   fi
-  rm "$tmpmd" "$tmpsha"
+  rm "$tmpmd"
 fi
 # Toggle completed flag
 if [ "${1:-}" = "--toggle-completed" ]; then
@@ -214,7 +236,7 @@ fi
 query=$(echo "$query" | sed 's/ *$//g')
 
 selection=$(
-  __lines | fzf --ansi \
+  __lines | $FZF --ansi \
     --query="$query " \
     --no-sort \
     --no-hscroll \
@@ -230,7 +252,7 @@ selection=$(
     --bind="alt-1:change-query(📘)" \
     --bind="alt-2:change-query(🗒️)" \
     --bind="alt-3:change-query(✅ | 🔲)" \
-    --bind="ctrl-s:execute($SYNC_CMD)"
+    --bind="ctrl-s:execute($SYNC_CMD ; echo 'Press <enter> to continue.'; read -r tmp)"
 )
 if [ -z "$selection" ]; then
   return 0
@@ -245,20 +267,19 @@ fi
 
 # Prepare file to be edited
 filetmp=$(mktemp --suffix='.md')
-filesha="$filetmp.sha"
 awk "$AWK_EXPORT" "$file" >"$filetmp"
-sha1sum "$filetmp" >"$filesha"
+checksum=$(cksum "$filetmp")
 
 # Open in editor
 $EDITOR "$filetmp" >/dev/tty
 
 # Update only if changes are detected
-if ! sha1sum -c "$filesha" >/dev/null 2>&1; then
+if [ "$checksum" != "$(cksum "$filetmp")" ]; then
   echo "Uh... chages detected!" >/dev/tty
   file_new="$filetmp.ics"
   awk "$AWK_UPDATE" "$filetmp" "$file" >"$file_new"
   mv "$file_new" "$file"
 fi
-rm "$filetmp" "$filesha"
+rm "$filetmp"
 
 exec "$0"
