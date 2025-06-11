@@ -1,4 +1,7 @@
 A [fzf](https://github.com/junegunn/fzf)-based **journaling, notes, and tasks** application with CalDav support.
+If you are interested in this, then you may also be interested in the
+corresponding calendar application
+[fzf-vcal](https://github.com/baumea/fzf-vcal).
 
 Description and Use Case
 ------------------------
