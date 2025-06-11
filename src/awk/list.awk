@@ -130,6 +130,21 @@ ENDFILE {
   if (!type) {
     exit
   }
+  # Construct path, and check for validity
+  depth = split(FILENAME, path, "/");
+  fpath = path[depth-1] "/" path[depth]
+  if (index(fpath, " "))
+  {
+    print 10,
+          "-",
+          "-",
+          RED "ERROR: file '" fpath "' contains whitespaces!" OFF
+    exit
+  }
+  # Collection name
+  collection = path[depth-1]
+  collection = collection in collection2label ? collection2label[collection] : collection;
+
   # Process content lines
   storetext_line(content_line, c, "CATEGORIES"   );
   storetext_line(content_line, c, "DESCRIPTION"  );
@@ -159,11 +174,6 @@ ENDFILE {
   # DTSTAMP:       mandatory field in VTODO and VJOURNAL, date-time in UTC time
   #                format
   mod = c["LAST-MODIFIED"] ? c["LAST-MODIFIED"] : c["DTSTAMP"];
-
-  # Collection name
-  depth = split(FILENAME, path, "/");
-  collection = depth > 1 ? path[depth-1] : "";
-  collection = collection in collection2label ? collection2label[collection] : collection;
 
   # Date field. For VTODO entries, we show the due date, for journal entries,
   # the associated date.
@@ -206,10 +216,10 @@ ENDFILE {
 
   print prio,
         mod,
+        fpath,
         collection,
         datecolor d OFF,
         flag,
         priotext summarycolor summary OFF,
-        WHITE categories OFF,
-        "                                                                                                                                                                    " FAINT FILENAME OFF;
+        WHITE categories OFF;
 }

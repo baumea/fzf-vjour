@@ -5,71 +5,96 @@ set -eu
 err() {
   echo "❌ $1" >/dev/tty
 }
-# Read configuration
-# shellcheck source=/dev/null
-CONFIGFILE="$HOME/.config/fzf-vjour/config"
-if [ ! -f "$CONFIGFILE" ]; then
-  err "Configuration '$CONFIGFILE' not found."
-  exit 1
-fi
-. "$CONFIGFILE"
-if [ -z "${ROOT:-}" ] || [ -z "${SYNC_CMD:-}" ] || [ -z "${COLLECTION_LABELS:-}" ]; then
-  err "Configuration is incomplete."
-  exit 1
-fi
 
-# Tools
-if command -v "fzf" >/dev/null; then
-  FZF="fzf"
-else
-  err "Did not find the command-line fuzzy finder fzf."
-  exit 1
-fi
-if command -v "bat" >/dev/null; then
-  CAT="bat"
-elif command -v "batcat" >/dev/null; then
-  CAT="batcat"
-fi
-CAT=${CAT:+$CAT --color=always --style=numbers --language=md}
-CAT=${CAT:-cat}
+if [ -z "${FZF_VJOUR_USE_EXPORTED:-}" ]; then
+  # Read configuration
+  CONFIGFILE="$HOME/.config/fzf-vjour/config"
+  if [ ! -f "$CONFIGFILE" ]; then
+    err "Configuration '$CONFIGFILE' not found."
+    exit 1
+  fi
+  # shellcheck source=/dev/null
+  . "$CONFIGFILE"
+  if [ -z "${ROOT:-}" ] || [ -z "${SYNC_CMD:-}" ] || [ -z "${COLLECTION_LABELS:-}" ]; then
+    err "Configuration is incomplete."
+    exit 1
+  fi
+  export ROOT
+  export SYNC_CMD
+  export COLLECTION_LABELS
 
-### AWK SCRIPTS
-AWK_ALTERTODO=$(
-  cat <<'EOF'
+  # Tools
+  if command -v "fzf" >/dev/null; then
+    FZF="fzf"
+  else
+    err "Did not find the command-line fuzzy finder fzf."
+    exit 1
+  fi
+  export FZF
+
+  if command -v "uuidgen" >/dev/null; then
+    UUIDGEN="uuidgen"
+  else
+    err "Did not find the uuidgen command."
+    exit 1
+  fi
+  export UUIDGEN
+
+  if command -v "bat" >/dev/null; then
+    CAT="bat"
+  elif command -v "batcat" >/dev/null; then
+    CAT="batcat"
+  fi
+  CAT=${CAT:+$CAT --color=always --style=numbers --language=md}
+  CAT=${CAT:-cat}
+  export CAT
+
+  ### AWK SCRIPTS
+  AWK_ALTERTODO=$(
+    cat <<'EOF'
 @@include src/awk/altertodo.awk
 EOF
-)
+  )
+  export AWK_ALTERTODO
 
-AWK_EXPORT=$(
-  cat <<'EOF'
+  AWK_EXPORT=$(
+    cat <<'EOF'
 @@include src/awk/export.awk
 EOF
-)
+  )
+  export AWK_EXPORT
 
-AWK_GET=$(
-  cat <<'EOF'
+  AWK_GET=$(
+    cat <<'EOF'
 @@include src/awk/get.awk
 EOF
-)
+  )
+  export AWK_GET
 
-AWK_LIST=$(
-  cat <<'EOF'
+  AWK_LIST=$(
+    cat <<'EOF'
 @@include src/awk/list.awk
 EOF
-)
+  )
+  export AWK_LIST
 
-AWK_NEW=$(
-  cat <<'EOF'
+  AWK_NEW=$(
+    cat <<'EOF'
 @@include src/awk/new.awk
 EOF
-)
+  )
+  export AWK_NEW
 
-AWK_UPDATE=$(
-  cat <<'EOF'
+  AWK_UPDATE=$(
+    cat <<'EOF'
 @@include src/awk/update.awk
 EOF
-)
-### END OF AWK SCRIPTS
+  )
+  export AWK_UPDATE
+  ### END OF AWK SCRIPTS
+  FZF_VJOUR_USE_EXPORTED="yes"
+  export FZF_VJOUR_USE_EXPORTED
+fi
 
 __lines() {
   find "$ROOT" -type f -name '*.ics' -print0 | xargs -0 -P 0 \
@@ -80,12 +105,7 @@ __lines() {
     -v flag_journal="📘" \
     -v flag_note="🗒️" \
     "$AWK_LIST" |
-    sort -g -r |
-    cut -d ' ' -f 3-
-}
-
-__filepath_from_selection() {
-  echo "$1" | grep -o ' \{50\}.*$' | xargs
+    sort -g -r
 }
 
 # Program starts here
@@ -117,17 +137,19 @@ fi
 # Command line arguments to be self-contained
 # Generate preview of file from selection
 if [ "${1:-}" = "--preview" ]; then
-  file=$(__filepath_from_selection "$2")
+  name=$(echo "$2" | cut -d ' ' -f 3)
+  file="$ROOT/$name"
   awk -v field="DESCRIPTION" "$AWK_GET" "$file" |
     $CAT
   exit
 fi
 # Delete file from selection
 if [ "${1:-}" = "--delete" ]; then
-  file=$(__filepath_from_selection "$2")
+  name=$(echo "$2" | cut -d ' ' -f 3)
+  file="$ROOT/$name"
   summary=$(awk -v field="SUMMARY" "$AWK_GET" "$file")
   while true; do
-    printf "Do you want to delete the entry with the title \"%s\"? (yes/no)" "$summary" >/dev/tty
+    printf "Do you want to delete the entry with the title \"%s\"? (yes/no): " "$summary" >/dev/tty
     read -r yn
     case $yn in
     "yes")
@@ -145,17 +167,10 @@ if [ "${1:-}" = "--delete" ]; then
 fi
 # Generate new entry
 if [ "${1:-}" = "--new" ]; then
-  label=$(printf "%s" "$COLLECTION_LABELS" |
-    awk 'BEGIN { FS="="; RS=";"; } {print $2}' |
-    $FZF \
-      --margin 20% \
-      --prompt="Select collection> ")
-
-  collection=$(printf "%s" "$COLLECTION_LABELS" |
-    awk -v label="$label" 'BEGIN { FS="="; RS=";"; } $2 == label {print $1}')
+  collection=$(echo "$COLLECTION_LABELS" | tr ';' '\n' | $FZF --delimiter='=' --with-nth=2 --accept-nth=1)
   file=""
   while [ -f "$file" ] || [ -z "$file" ]; do
-    uuid=$(uuidgen)
+    uuid=$($UUIDGEN)
     file="$ROOT/$collection/$uuid.ics"
   done
   tmpmd=$(mktemp --suffix='.md')
@@ -181,21 +196,24 @@ if [ "${1:-}" = "--new" ]; then
 fi
 # Toggle completed flag
 if [ "${1:-}" = "--toggle-completed" ]; then
-  file=$(__filepath_from_selection "$2")
+  name=$(echo "$2" | cut -d ' ' -f 3)
+  file="$ROOT/$name"
   tmpfile=$(mktemp)
   awk "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
 fi
 # Increase priority
 if [ "${1:-}" = "--increase-priority" ]; then
-  file=$(__filepath_from_selection "$2")
+  name=$(echo "$2" | cut -d ' ' -f 3)
+  file="$ROOT/$name"
   tmpfile=$(mktemp)
   awk -v delta="1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
 fi
 # Decrease priority
 if [ "${1:-}" = "--decrease-priority" ]; then
-  file=$(__filepath_from_selection "$2")
+  name=$(echo "$2" | cut -d ' ' -f 3)
+  file="$ROOT/$name"
   tmpfile=$(mktemp)
   awk -v delta="-1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
@@ -230,10 +248,8 @@ fi
 if [ "${1:-}" = "--no-journal" ]; then
   query="!📘"
 fi
-if [ -z "$query" ]; then
-  query="!✅"
-fi
-query=$(echo "$query" | sed 's/ *$//g')
+query=${query:-!✅}
+query=$(echo "$query" | xargs)
 
 selection=$(
   __lines | $FZF --ansi \
@@ -241,6 +257,8 @@ selection=$(
     --no-sort \
     --no-hscroll \
     --ellipsis='' \
+    --with-nth=4.. \
+    --accept-nth=3 \
     --preview="$0 --preview {}" \
     --bind="ctrl-r:reload-sync($0 --reload)" \
     --bind="ctrl-alt-d:become($0 --delete {})" \
@@ -252,13 +270,13 @@ selection=$(
     --bind="alt-1:change-query(📘)" \
     --bind="alt-2:change-query(🗒️)" \
     --bind="alt-3:change-query(✅ | 🔲)" \
-    --bind="ctrl-s:execute($SYNC_CMD ; echo 'Press <enter> to continue.'; read -r tmp)"
+    --bind="ctrl-s:execute($SYNC_CMD ; printf 'Press <enter> to continue.'; read -r tmp)"
 )
 if [ -z "$selection" ]; then
   return 0
 fi
 
-file=$(__filepath_from_selection "$selection")
+file="$ROOT/$selection"
 
 if [ ! -f "$file" ]; then
   echo "ERROR: File '$file' does not exist!" >/dev/tty
@@ -275,7 +293,6 @@ $EDITOR "$filetmp" >/dev/tty
 
 # Update only if changes are detected
 if [ "$checksum" != "$(cksum "$filetmp")" ]; then
-  echo "Uh... chages detected!" >/dev/tty
   file_new="$filetmp.ics"
   awk "$AWK_UPDATE" "$filetmp" "$file" >"$file_new"
   mv "$file_new" "$file"
