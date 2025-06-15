@@ -13,6 +13,7 @@ function escape(str)
 {
   escape_categories(str)
   gsub(",",  "\\\\,",    str);
+  return str
 }
 
 function print_fold(nameparam, content,    i, s)
@@ -45,9 +46,9 @@ ENDFILE {
       cmd | getline res
       due = res ? res : ""
     }
-    escape(summary);
-    escape(desc);
-    escape_categories(categories);
+    summary = escape(summary);
+    desc = escape(desc);
+    categories = escape_categories(categories);
   }
 }
 
