@@ -13,6 +13,9 @@ with a CalDav server, such as [Radicale](https://radicale.org/), and a synchroni
 
 Installation
 ------------
+
+### Manual
+
 Download the file `fzf-vjour` from the [latest release](https://github.com/baumea/fzf-vjour/releases/latest), or run `./scripts/build.sh`, then
 copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
 
@@ -20,6 +23,12 @@ copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it e
 This is a POSIX script with inline `awk` elements.
 Make sure you have [fzf](https://github.com/junegunn/fzf) installed.
 I also suggest to install [batcat](https://github.com/sharkdp/bat) for colorful previews.
+
+### Arch Linux
+
+```bash
+yay -S fzf-vjour-git
+```
 
 Configuration
 --------------
