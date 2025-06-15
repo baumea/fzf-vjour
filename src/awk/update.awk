@@ -6,13 +6,13 @@ function getcontent(content_line, prop)
 function escape_categories(str)
 {
   gsub("\\\\", "\\\\", str);
-  gsub(";",  "\\\\;",    str);
+  gsub(";",  "\\;",    str);
 }
 
 function escape(str)
 {
   escape_categories(str)
-  gsub(",",  "\\\\,",    str);
+  gsub(",",  "\\,",    str);
   return str
 }
 

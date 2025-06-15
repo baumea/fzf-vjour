@@ -59,9 +59,9 @@ END {
     cmd | getline res
     due = res ? res : ""
   }
-  escape(summary);
-  escape(desc);
-  escape_categories(categories);
+  summary = escape(summary);
+  desc = escape(desc);
+  categories = escape_categories(categories);
 
   # print ical
   print "BEGIN:VCALENDAR";
