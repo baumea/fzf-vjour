@@ -16,8 +16,7 @@ Installation
 
 ### Manual
 
-Download the file `fzf-vjour` from the [latest release](https://github.com/baumea/fzf-vjour/releases/latest), or run `./scripts/build.sh`, then
-copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
+Run `./scripts/build.sh`, then copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
 
 ### Requirements
 This is a POSIX script with inline `awk` elements.
