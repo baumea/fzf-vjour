@@ -1,33 +1,44 @@
-function getcontent(content_line, prop)
-{
-  return substr(content_line[prop], index(content_line[prop], ":") + 1);
-}
-
-function escape_categories(str)
-{
-  gsub("\\\\", "\\\\", str);
-  gsub(";",  "\\;",    str);
-}
-
+# Escape string to be used as content in iCalendar files.
+#
+# @input str: String to escape
+# @return: Escaped string
 function escape(str)
 {
-  escape_categories(str)
-  gsub(",",  "\\,",    str);
+  gsub("\\\\", "\\",  str)
+  gsub(";",    "\\;", str)
+  gsub(",",    "\\,", str)
   return str
 }
 
+# Escape string to be used as content in iCalendar files.
+#
+# @input str: String to escape
+# @return: Escaped string
+function escape_categories(str)
+{
+  gsub("\\\\", "\\",  str)
+  gsub(";",    "\\;", str)
+  return str
+}
+
+# Print property with its content and fold according to the iCalendar
+# specification.
+#
+# @local variables: i, s
+# @input nameparam: Property name with optional parameters
+# @input content: Escaped content
 function print_fold(nameparam, content,    i, s)
 {
-  i = 74 - length(nameparam);
-  s = substr(content, 1, i);
-  print nameparam s;
-  s = substr(content, i+1, 73);
-  i = i + 73;
+  i = 74 - length(nameparam)
+  s = substr(content, 1, i)
+  print nameparam s
+  s = substr(content, i+1, 73)
+  i = i + 73
   while (s)
   {
-    print " " s;
-    s = substr(content, i+1, 73);
-    i = i + 73;
+    print " " s
+    s = substr(content, i+1, 73)
+    i = i + 73
   }
 }
 
@@ -78,9 +89,9 @@ NR == FNR {
   print "SEQUENCE:" seq;
   print "LAST-MODIFIED:" zulu;
   if (due) print "DUE;VALUE=DATE:" due;
-  print_fold("SUMMARY:",     summary,       i, s);
-  print_fold("CATEGORIES:",  categories,    i, s);
-  print_fold("DESCRIPTION:", desc,          i, s);
+  print_fold("SUMMARY:",     summary);
+  print_fold("CATEGORIES:",  categories);
+  print_fold("DESCRIPTION:", desc);
   type = "";
 }
 { print }

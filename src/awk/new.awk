@@ -1,27 +1,44 @@
-function escape_categories(str)
-{
-  gsub("\\\\", "\\\\", str);
-  gsub(";",  "\\\\;",    str);
-}
-
+# Escape string to be used as content in iCalendar files.
+#
+# @input str: String to escape
+# @return: Escaped string
 function escape(str)
 {
-  escape_categories(str)
-  gsub(",",  "\\\\,",    str);
+  gsub("\\\\", "\\",  str)
+  gsub(";",    "\\;", str)
+  gsub(",",    "\\,", str)
+  return str
 }
 
+# Escape string to be used as content in iCalendar files.
+#
+# @input str: String to escape
+# @return: Escaped string
+function escape_categories(str)
+{
+  gsub("\\\\", "\\",  str)
+  gsub(";",    "\\;", str)
+  return str
+}
+
+# Print property with its content and fold according to the iCalendar
+# specification.
+#
+# @local variables: i, s
+# @input nameparam: Property name with optional parameters
+# @input content: Escaped content
 function print_fold(nameparam, content,    i, s)
 {
-  i = 74 - length(nameparam);
-  s = substr(content, 1, i);
-  print nameparam s;
-  s = substr(content, i+1, 73);
-  i = i + 73;
+  i = 74 - length(nameparam)
+  s = substr(content, 1, i)
+  print nameparam s
+  s = substr(content, i+1, 73)
+  i = i + 73
   while (s)
   {
-    print " " s;
-    s = substr(content, i+1, 73);
-    i = i + 73;
+    print " " s
+    s = substr(content, i+1, 73)
+    i = i + 73
   }
 }
 
@@ -88,9 +105,9 @@ END {
     if (start)
       print "DTSTART;VALUE=DATE:" start;
   }
-  if (summary)    print_fold("SUMMARY:",     summary,       i, s);
-  if (categories) print_fold("CATEGORIES:",  categories,    i, s);
-  if (desc)       print_fold("DESCRIPTION:", desc,          i, s);
+  if (summary)    print_fold("SUMMARY:",     summary);
+  if (categories) print_fold("CATEGORIES:",  categories);
+  if (desc)       print_fold("DESCRIPTION:", desc);
   print "END:" type;
   print "END:VCALENDAR"
 }

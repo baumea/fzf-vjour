@@ -3,9 +3,28 @@
 # See https://datatracker.ietf.org/doc/html/rfc5545 for the RFC 5545 that
 # describes iCalendar, and its syntax
 
-function getcontent(content_line, prop)
-{
-  return substr(content_line[prop], index(content_line[prop], ":") + 1);
+# unescape
+# Isolate and unescape the content part of an iCalendar line.
+#
+# @local variables: tmp
+# @input str: String
+# @return: Unescaped string
+function unescape(str) {
+  gsub("\\\\n",    "\n", str)
+  gsub("\\\\N",    "\n", str)
+  gsub("\\\\,",    ",",  str)
+  gsub("\\\\;",    ";",  str)
+  gsub("\\\\\\\\", "\\", str)
+  return str
+}
+
+# getcontent
+# Isolate content part of an iCalendar line, and unescape.
+#
+# @input str: String
+# @return: Unescaped content part
+function getcontent(str) {
+  return unescape(substr(str, index(str, ":") + 1))
 }
 
 function storetext_line(content_line, c, prop)
@@ -19,23 +38,14 @@ function storetext_line(content_line, c, prop)
   #gsub(" ",    "_",  c[prop]);
 }
 
-function storeinteger(content_line, c, prop)
-{
-  c[prop] = getcontent(content_line, prop);
-  c[prop] = c[prop] ? c[prop] : 0;
-}
-
-function storedatetime(content_line, c, prop)
-{
-  c[prop] = getcontent(content_line, prop);
-}
-
-function storedate(content_line, c, prop)
-{
-  c[prop] = substr(getcontent(content_line, prop), 1, 8);
-}
-
-function formatdate(date, today, todaystamp,       ts, ts_y, ts_m, ts_d, delta)
+# formatdate
+# Generate kind-of-pretty date strings.
+#
+# @local variables: ts, ts_y, ts_m, ts_d, delta
+# @input date: Date in the format YYYYMMDD
+# @input todaystamp: Today, seconds since epoch
+# @return: string
+function formatdate(date, todaystamp,       ts, ts_y, ts_m, ts_d, delta)
 {
   ts_y = substr(date, 1, 4);
   ts_m = substr(date, 5, 2);
@@ -87,7 +97,6 @@ BEGIN {
   RED = "\033[1;31m";
   WHITE = "\033[1;97m";
   CYAN = "\033[1;36m";
-  FAINT = "\033[2m";
   OFF = "\033[m";
 
   # For date comparision
@@ -99,7 +108,6 @@ BEGIN {
 BEGINFILE {
   type = "";
   prop = "";
-  delete content_line;
   delete c;
 
 }
@@ -114,7 +122,7 @@ BEGINFILE {
 
 /^(CATEGORIES|DESCRIPTION|PRIORITY|STATUS|SUMMARY|COMPLETED|DUE|DTSTART|DURATION|CREATED|DTSTAMP|LAST-MODIFIED)/ {
   prop = $1;
-  content_line[prop] = $0;
+  c[prop] = $0;
   next;
 }
 /^[^ ]/ && prop {
@@ -122,7 +130,7 @@ BEGINFILE {
   next;
 }
 /^ / && prop {
-  content_line[prop] = content_line[prop] substr($0, 2); 
+  c[prop] = c[prop] substr($0, 2); 
   next; 
 }
 
@@ -146,26 +154,33 @@ ENDFILE {
   collection = collection in collection2label ? collection2label[collection] : collection;
 
   # Process content lines
-  storetext_line(content_line, c, "CATEGORIES"   );
-  storetext_line(content_line, c, "DESCRIPTION"  );
-  storeinteger(  content_line, c, "PRIORITY"     );
-  storetext_line(content_line, c, "STATUS"       );
-  storetext_line(content_line, c, "SUMMARY"      );
-  storedatetime( content_line, c, "COMPLETED"    );
-  storedate(     content_line, c, "DUE"          );
-  storedate(     content_line, c, "DTSTART"      );
-  storedatetime( content_line, c, "DURATION"     );
-  storedatetime( content_line, c, "CREATED"      );
-  storedatetime( content_line, c, "DTSTAMP"      );
-  storedatetime( content_line, c, "LAST-MODIFIED");
+  # strings
+  cat = unescape(getcontent(c["CATEGORIES"]))
+  des = unescape(getcontent(c["DESCRIPTION"]))
+  sta = unescape(getcontent(c["STATUS"]))
+  sum = unescape(getcontent(c["SUMMARY"]))
+
+  # integers
+  pri = unescape(getcontent(c["PRIORITY"]))
+  pri = pri ? pri + 0 : 0
+
+  # dates
+  due = substr(unescape(getcontent(c["DUE"])), 1, 8)
+  dts = substr(unescape(getcontent(c["DTSTART"])), 1, 8)
+  
+  # date-times
+  com = unescape(getcontent(c["COMPLETED"]))
+  dur = unescape(getcontent(c["DURATION"]))
+  cre = unescape(getcontent(c["CREATED"]))
+  stp = unescape(getcontent(c["DTSTAMP"]))
+  lmd = unescape(getcontent(c["LAST-MODIFIED"]))
 
   # Priority field, primarly used for sorting
-  priotext = "";
-  prio = 0;
-  if (c["PRIORITY"] > 0)
+  psort = 0;
+  if (pri > 0)
   {
-    priotext = "❗(" c["PRIORITY"] ") ";
-    prio = 10 - c["PRIORITY"];
+    priotext = "❗(" pri ") "
+    psort = 10 - pri
   }
 
   # Last modification/creation time stamp, used for sorting
@@ -173,7 +188,7 @@ ENDFILE {
   #                UTC time format
   # DTSTAMP:       mandatory field in VTODO and VJOURNAL, date-time in UTC time
   #                format
-  mod = c["LAST-MODIFIED"] ? c["LAST-MODIFIED"] : c["DTSTAMP"];
+  mod = lmd ? lmd : stp
 
   # Date field. For VTODO entries, we show the due date, for journal entries,
   # the associated date.
@@ -183,9 +198,9 @@ ENDFILE {
   if (type == "VTODO")
   {
     # Either DUE or DURATION may appear. If DURATION appears, then also DTSTART
-    d = c["DUE"] ? c["DUE"] : 
-      (c["DURATION"] ? c["DTSTART"] " for " c["DURATION"] : "");
-    if (d && d <= today && c["STATUS"] != "COMPLETED")
+    d = due ? due : 
+      (dur ? dts " for " dur : "");
+    if (d && d <= today && sta != "COMPLETED")
     {
       datecolor = RED;
       summarycolor = RED;
@@ -193,28 +208,28 @@ ENDFILE {
   } else {
     d = c["DTSTART"];
   }
-  d = d ? formatdate(d, today, todaystamp       ts, ts_y, ts_m, ts_d, delta) : "              ";
+  d = d ? formatdate(d, todaystamp) : "              ";
 
   # flag: - "journal"   for VJOURNAL with DTSTART
   #       - "note"      for VJOURNAL without DTSTART
   #       - "completed" for VTODO with c["STATUS"] == COMPLETED
   #       - "open"      for VTODO with c["STATUS"] != COMPLETED
   if (type == "VTODO")
-    flag = c["STATUS"] == "COMPLETED" ? flag_completed : flag_open;
+    flag = sta == "COMPLETED" ? flag_completed : flag_open;
   else
-    flag = c["DTSTART"] ? flag_journal : flag_note;
+    flag = dts ? flag_journal : flag_note;
   
   # summary
   # c["SUMMARY"]
-  summary = c["SUMMARY"] ? c["SUMMARY"] : " "
+  summary = sum ? sum : " "
 
   # categories
-  categories = c["CATEGORIES"] ? c["CATEGORIES"] : " "
+  categories = cat ? cat : " "
 
   # filename
   # FILENAME
 
-  print prio,
+  print psort,
         mod,
         fpath,
         collection,
