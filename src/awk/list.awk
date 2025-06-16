@@ -3,7 +3,15 @@
 # See https://datatracker.ietf.org/doc/html/rfc5545 for the RFC 5545 that
 # describes iCalendar, and its syntax
 
-# unescape
+# Make string single-line
+#
+# @input str: String
+# @return: String without newlines
+function singleline(str) {
+  gsub("\\n", " ", str)
+  return str
+}
+
 # Isolate and unescape the content part of an iCalendar line.
 #
 # @local variables: tmp
@@ -18,24 +26,12 @@ function unescape(str) {
   return str
 }
 
-# getcontent
 # Isolate content part of an iCalendar line, and unescape.
 #
 # @input str: String
 # @return: Unescaped content part
 function getcontent(str) {
   return unescape(substr(str, index(str, ":") + 1))
-}
-
-function storetext_line(content_line, c, prop)
-{
-  c[prop] = getcontent(content_line, prop);
-  gsub("\\\\n",    " ",  c[prop]);
-  gsub("\\\\N",    " ",  c[prop]);
-  gsub("\\\\,",    ",",  c[prop]);
-  gsub("\\\\;",    ";",  c[prop]);
-  gsub("\\\\\\\\", "\\", c[prop]);
-  #gsub(" ",    "_",  c[prop]);
 }
 
 # formatdate
@@ -109,7 +105,6 @@ BEGINFILE {
   type = "";
   prop = "";
   delete c;
-
 }
 
 /^BEGIN:(VJOURNAL|VTODO)/ {
@@ -155,10 +150,10 @@ ENDFILE {
 
   # Process content lines
   # strings
-  cat = unescape(getcontent(c["CATEGORIES"]))
-  des = unescape(getcontent(c["DESCRIPTION"]))
-  sta = unescape(getcontent(c["STATUS"]))
-  sum = unescape(getcontent(c["SUMMARY"]))
+  cat = singleline(unescape(getcontent(c["CATEGORIES"])))
+  des = singleline(unescape(getcontent(c["DESCRIPTION"])))
+  sta = singleline(unescape(getcontent(c["STATUS"])))
+  sum = singleline(unescape(getcontent(c["SUMMARY"])))
 
   # integers
   pri = unescape(getcontent(c["PRIORITY"]))
@@ -177,6 +172,7 @@ ENDFILE {
 
   # Priority field, primarly used for sorting
   psort = 0;
+  priotext = ""
   if (pri > 0)
   {
     priotext = "❗(" pri ") "
@@ -206,7 +202,7 @@ ENDFILE {
       summarycolor = RED;
     }
   } else {
-    d = c["DTSTART"];
+    d = dts
   }
   d = d ? formatdate(d, todaystamp) : "              ";
 
