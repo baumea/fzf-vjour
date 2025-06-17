@@ -14,16 +14,28 @@ function singleline(str) {
 
 # Isolate and unescape the content part of an iCalendar line.
 #
-# @local variables: tmp
+# @local variables: i, c, c2, res
 # @input str: String
 # @return: Unescaped string
-function unescape(str) {
-  gsub("\\\\n",    "\n", str)
-  gsub("\\\\N",    "\n", str)
-  gsub("\\\\,",    ",",  str)
-  gsub("\\\\;",    ";",  str)
-  gsub("\\\\\\\\", "\\", str)
-  return str
+function unescape(str,    i, c, c2, res) {
+  for(i=1; i<=length(str);i++) {
+    c = substr(str, i, 1)
+    if (c != "\\") {
+      res = res c
+      continue
+    }
+    i++
+    c2 = substr(str, i, 1)
+    if (c2 == "n" || c2 == "N") {
+      res = res "\n"
+      continue
+    }
+    # Alternatively, c2 is "\\" or "," or ";". In each case, append res with
+    # c2. If the strings has been escaped correctly, then the character c2
+    # cannot be anything else. To be fail-safe, simply append res with c2.
+    res = res c2
+  }
+  return res
 }
 
 # Isolate content part of an iCalendar line, and unescape.
@@ -194,8 +206,7 @@ ENDFILE {
   if (type == "VTODO")
   {
     # Either DUE or DURATION may appear. If DURATION appears, then also DTSTART
-    d = due ? due : 
-      (dur ? dts " for " dur : "");
+    d = due ? due : (dur ? dts " for " dur : "");
     if (d && d <= today && sta != "COMPLETED")
     {
       datecolor = RED;

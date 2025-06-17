@@ -249,7 +249,7 @@ if [ "${1:-}" = "--no-journal" ]; then
   query="!📘"
 fi
 query=${query:-!✅}
-query=$(echo "$query" | xargs)
+query=$(echo "$query" | sed "s/^ *//" | sed "s/ *$//")
 
 selection=$(
   __lines | $FZF --ansi \

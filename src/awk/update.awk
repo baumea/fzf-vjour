@@ -4,9 +4,9 @@
 # @return: Escaped string
 function escape(str)
 {
-  gsub("\\\\", "\\",  str)
-  gsub(";",    "\\;", str)
-  gsub(",",    "\\,", str)
+  gsub("\\\\", "\\\\", str)
+  gsub(";",    "\\;",  str)
+  gsub(",",    "\\,",  str)
   return str
 }
 
@@ -16,8 +16,8 @@ function escape(str)
 # @return: Escaped string
 function escape_categories(str)
 {
-  gsub("\\\\", "\\",  str)
-  gsub(";",    "\\;", str)
+  gsub("\\\\", "\\\\", str)
+  gsub(";",    "\\;",  str)
   return str
 }
 
@@ -57,25 +57,22 @@ ENDFILE {
       cmd | getline res
       due = res ? res : ""
     }
-    summary = escape(summary);
-    desc = escape(desc);
-    categories = escape_categories(categories);
   }
 }
 
-NR == FNR && desc { desc = desc "\\n" $0; next; }
+NR == FNR && desc { desc = desc "\\n" escape($0); next; }
 NR == FNR {
   if (substr($0, 1, 6) == "::: <|")
   {
     due = substr($0, 8);
     getline;
   }
-  summary = substr($0, 1, 2) != "# " ? "" : substr($0, 3);
+  summary = substr($0, 1, 2) != "# " ? "" : escape(substr($0, 3));
   getline;
-  categories = substr($0, 1, 1) != ">" ? "" : substr($0, 3);
+  categories = substr($0, 1, 1) != ">" ? "" : escape_categories(substr($0, 3));
   getline; # This line should be empty
   getline; # First line of description
-  desc = $0;
+  desc = escape($0);
   next;
 }
 
