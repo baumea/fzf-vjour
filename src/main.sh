@@ -114,6 +114,8 @@ if [ "${1:-}" = "--help" ]; then
   echo "Usage: $0 [--help | --new [FILTER..] | [FILTER..] ]
   --help                 Show this help and exit
   --new                  Create new entry and do not exit
+  --git-init             Activate git usage and exit
+  --git <cmd>            Run git command and exit
 
 [FILTER]
   You may specify any of these filters. Filters can be negated using the
@@ -128,6 +130,35 @@ if [ "${1:-}" = "--help" ]; then
   --completed             Show completed tasks only
   --open                  Show open tasks only
   --filter <query>        Specify custom query"
+  exit
+fi
+
+# Git
+if command -v "git" >/dev/null && [ -d "$ROOT/.git" ]; then
+  GIT="git -C $ROOT"
+fi
+if [ "${1:-}" = "--git-init" ]; then
+  shift
+  if [ -n "${GIT:-}" ]; then
+    err "Git already enabled"
+    return 1
+  fi
+  if ! command -v "git" >/dev/null; then
+    err "Git not installed"
+    return 1
+  fi
+  git -C "$ROOT" init
+  git -C "$ROOT" add -A
+  git -C "$ROOT" commit -m 'Initial commit: Start git tracking'
+  exit
+fi
+if [ "${1:-}" = "--git" ]; then
+  shift
+  if [ -z "${GIT:-}" ]; then
+    err "Git not supported, run \`$0 --git-init\` first"
+    return 1
+  fi
+  $GIT "$@"
   exit
 fi
 
@@ -155,6 +186,10 @@ if [ "${1:-}" = "--delete" ]; then
     case $yn in
     "yes")
       rm -v "$file"
+      if [ -n "$GIT" ]; then
+        $GIT add "$file"
+        $GIT commit -q -m "File deleted" -- "$file"
+      fi
       break
       ;;
     "no")
@@ -193,6 +228,10 @@ if [ "${1:-}" = "--new" ]; then
     tmpfile="$tmpmd.ics"
     awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"
     mv "$tmpfile" "$file"
+    if [ -n "$GIT" ]; then
+      $GIT add "$file"
+      $GIT commit -q -m "File added" -- "$file"
+    fi
   fi
   rm "$tmpmd"
 fi
@@ -205,6 +244,10 @@ if [ "${1:-}" = "--toggle-completed" ]; then
   tmpfile=$(mktemp)
   awk "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
+  if [ -n "$GIT" ]; then
+    $GIT add "$file"
+    $GIT commit -q -m "Completed toggle" -- "$file"
+  fi
 fi
 # Increase priority
 if [ "${1:-}" = "--increase-priority" ]; then
@@ -215,6 +258,10 @@ if [ "${1:-}" = "--increase-priority" ]; then
   tmpfile=$(mktemp)
   awk -v delta="1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
+  if [ -n "$GIT" ]; then
+    $GIT add "$file"
+    $GIT commit -q -m "Priority increased" -- "$file"
+  fi
 fi
 # Decrease priority
 if [ "${1:-}" = "--decrease-priority" ]; then
@@ -225,6 +272,10 @@ if [ "${1:-}" = "--decrease-priority" ]; then
   tmpfile=$(mktemp)
   awk -v delta="-1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
+  if [ -n "$GIT" ]; then
+    $GIT add "$file"
+    $GIT commit -q -m "Priority decreased" -- "$file"
+  fi
 fi
 # Reload view
 if [ "${1:-}" = "--reload" ]; then
@@ -339,6 +390,10 @@ if [ "$checksum" != "$(cksum "$filetmp")" ]; then
   file_new="$filetmp.ics"
   awk "$AWK_UPDATE" "$filetmp" "$file" >"$file_new"
   mv "$file_new" "$file"
+  if [ -n "$GIT" ]; then
+    $GIT add "$file"
+    $GIT commit -q -m "File modified" -- "$file"
+  fi
 fi
 rm "$filetmp"
 
