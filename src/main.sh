@@ -122,15 +122,9 @@ if [ "${1:-}" = "--help" ]; then
   echo "  --no-journal           Ignore journal"
   echo "  --completed            Show completed tasks only"
   echo "  --no-completed         Ignore completed tasks"
+  echo "  --open                 Show open tasks only"
+  echo "  --no-open              Ignore open tasks"
   echo "  --new                  Create new entry"
-  echo ""
-  echo "The following options are for internal use."
-  echo "  --reload                            Reload list"
-  echo "  --preview <selection>               Generate preview"
-  echo "  --delete <selection>                Delete selected entry"
-  echo "  --decrease-priority <selection>     Decrease priority of selected task"
-  echo "  --increase-priority <selection>     Increase priority of selected task"
-  echo "  --toggle-completed <selection>      Toggle completion flag of task"
   exit
 fi
 
@@ -229,6 +223,12 @@ if [ "${1:-}" = "--no-completed" ]; then
 fi
 if [ "${1:-}" = "--completed" ]; then
   query="✅"
+fi
+if [ "${1:-}" = "--open" ]; then
+  query="🔲"
+fi
+if [ "${1:-}" = "--no-open" ]; then
+  query="!🔲"
 fi
 if [ "${1:-}" = "--tasks" ]; then
   query="✅ | 🔲"
