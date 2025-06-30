@@ -110,28 +110,33 @@ __lines() {
 
 # Program starts here
 if [ "${1:-}" = "--help" ]; then
-  echo "Usage: $0 [OPTION]"
-  echo ""
-  echo "You may specify at most one option."
-  echo "  --help                 Show this help and exit"
-  echo "  --tasks                Show tasks only"
-  echo "  --no-tasks             Ignore tasks"
-  echo "  --notes                Show notes only"
-  echo "  --no-notes             Ignore notes"
-  echo "  --journal              Show journal only"
-  echo "  --no-journal           Ignore journal"
-  echo "  --completed            Show completed tasks only"
-  echo "  --no-completed         Ignore completed tasks"
-  echo "  --open                 Show open tasks only"
-  echo "  --no-open              Ignore open tasks"
-  echo "  --new                  Create new entry"
+  shift
+  echo "Usage: $0 [--help | --new [FILTER..] | [FILTER..] ]
+  --help                 Show this help and exit
+  --new                  Create new entry and do not exit
+
+[FILTER]
+  You may specify any of these filters. Filters can be negated using the
+  --no-... versions, e.g., --no-tasks. Multiple filters are applied in
+  conjuction. By default, the filter --no-completed is used. Note that
+  --no-completed is not the same as --open, and similarly, --no-open is not the
+  same as --completed.
+
+  --tasks                 Show tasks only
+  --notes                 Show notes only
+  --journal               Show jounral only
+  --completed             Show completed tasks only
+  --open                  Show open tasks only
+  --filter <query>        Specify custom query"
   exit
 fi
 
 # Command line arguments to be self-contained
 # Generate preview of file from selection
 if [ "${1:-}" = "--preview" ]; then
-  name=$(echo "$2" | cut -d ' ' -f 3)
+  shift
+  name=$(echo "$1" | cut -d ' ' -f 3)
+  shift
   file="$ROOT/$name"
   awk -v field="DESCRIPTION" "$AWK_GET" "$file" |
     $CAT
@@ -139,7 +144,9 @@ if [ "${1:-}" = "--preview" ]; then
 fi
 # Delete file from selection
 if [ "${1:-}" = "--delete" ]; then
-  name=$(echo "$2" | cut -d ' ' -f 3)
+  shift
+  name=$(echo "$1" | cut -d ' ' -f 3)
+  shift
   file="$ROOT/$name"
   summary=$(awk -v field="SUMMARY" "$AWK_GET" "$file")
   while true; do
@@ -161,6 +168,7 @@ if [ "${1:-}" = "--delete" ]; then
 fi
 # Generate new entry
 if [ "${1:-}" = "--new" ]; then
+  shift
   collection=$(echo "$COLLECTION_LABELS" | tr ';' '\n' | $FZF --delimiter='=' --with-nth=2 --accept-nth=1)
   file=""
   while [ -f "$file" ] || [ -z "$file" ]; do
@@ -190,7 +198,9 @@ if [ "${1:-}" = "--new" ]; then
 fi
 # Toggle completed flag
 if [ "${1:-}" = "--toggle-completed" ]; then
-  name=$(echo "$2" | cut -d ' ' -f 3)
+  shift
+  name=$(echo "$1" | cut -d ' ' -f 3)
+  shift
   file="$ROOT/$name"
   tmpfile=$(mktemp)
   awk "$AWK_ALTERTODO" "$file" >"$tmpfile"
@@ -198,7 +208,9 @@ if [ "${1:-}" = "--toggle-completed" ]; then
 fi
 # Increase priority
 if [ "${1:-}" = "--increase-priority" ]; then
-  name=$(echo "$2" | cut -d ' ' -f 3)
+  shift
+  name=$(echo "$1" | cut -d ' ' -f 3)
+  shift
   file="$ROOT/$name"
   tmpfile=$(mktemp)
   awk -v delta="1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
@@ -206,49 +218,80 @@ if [ "${1:-}" = "--increase-priority" ]; then
 fi
 # Decrease priority
 if [ "${1:-}" = "--decrease-priority" ]; then
-  name=$(echo "$2" | cut -d ' ' -f 3)
+  shift
+  name=$(echo "$1" | cut -d ' ' -f 3)
+  shift
   file="$ROOT/$name"
   tmpfile=$(mktemp)
   awk -v delta="-1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
 fi
+# Reload view
 if [ "${1:-}" = "--reload" ]; then
+  shift
   __lines
   exit
 fi
 
-query="${FZF_QUERY:-}"
-if [ "${1:-}" = "--no-completed" ]; then
-  query="!✅"
-fi
-if [ "${1:-}" = "--completed" ]; then
-  query="✅"
-fi
-if [ "${1:-}" = "--open" ]; then
-  query="🔲"
-fi
-if [ "${1:-}" = "--no-open" ]; then
-  query="!🔲"
-fi
-if [ "${1:-}" = "--tasks" ]; then
-  query="✅ | 🔲"
-fi
-if [ "${1:-}" = "--no-tasks" ]; then
-  query="!✅ !🔲"
-fi
-if [ "${1:-}" = "--notes" ]; then
-  query="🗒️"
-fi
-if [ "${1:-}" = "--no-notes" ]; then
-  query="!🗒️"
-fi
-if [ "${1:-}" = "--journal" ]; then
-  query="📘"
-fi
-if [ "${1:-}" = "--no-journal" ]; then
-  query="!📘"
-fi
-query=${query:-!✅}
+while [ -n "${1:-}" ]; do
+  case "${1:-}" in
+  "--completed")
+    shift
+    cliquery="${cliquery:-} ✅"
+    ;;
+  "--no-completed")
+    shift
+    cliquery="${cliquery:-} !✅"
+    ;;
+  "--open")
+    shift
+    cliquery="${cliquery:-} 🔲"
+    ;;
+  "--no-open")
+    shift
+    cliquery="${cliquery:-} !🔲"
+    ;;
+  "--tasks")
+    shift
+    cliquery="${cliquery:-} ✅ | 🔲"
+    ;;
+  "--no-tasks")
+    shift
+    cliquery="${cliquery:-} !✅ !🔲"
+    ;;
+  "--notes")
+    shift
+    cliquery="${cliquery:-} 🗒️"
+    ;;
+  "--no-notes")
+    shift
+    cliquery="${cliquery:-} !🗒️"
+    ;;
+  "--journal")
+    shift
+    cliquery="${cliquery:-} 📘"
+    ;;
+  "--no-journal")
+    shift
+    cliquery="${cliquery:-} !📘"
+    ;;
+  "--filter")
+    shift
+    cliquery="${cliquery:-} $1"
+    shift
+    ;;
+  "--no-filter")
+    shift
+    cliquery="${cliquery:-} !$1"
+    shift
+    ;;
+  *)
+    err "Unknown option \"$1\""
+    exit 1
+    ;;
+  esac
+done
+query=${cliquery:-${FZF_QUERY:-!✅}}
 query=$(echo "$query" | sed "s/^ *//" | sed "s/ *$//")
 
 selection=$(
