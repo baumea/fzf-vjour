@@ -99,6 +99,7 @@ Here is a list of some currently present limitations.
 - Time agnostic: We use the date portion only of date-time specifications.
 - No alarms or notifications
 - No attachments
+- No recurrences
 
 License
 -------
