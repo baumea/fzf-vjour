@@ -91,6 +91,15 @@ In addition, there are the following keybindings:
 
 You may also invoke the script with `--help` to see further command-line options. 
 
+Limitations
+-----------
+Here is a list of some currently present limitations.
+
+- Timezone agnostic: Timezone specifications are ignored.
+- Time agnostic: We use the date portion only of date-time specifications.
+- No alarms or notifications
+- No attachments
+
 License
 -------
 This project is licensed under the [MIT License](./LICENSE).
