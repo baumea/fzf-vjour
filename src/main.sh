@@ -186,7 +186,7 @@ if [ "${1:-}" = "--delete" ]; then
     case $yn in
     "yes")
       rm -v "$file"
-      if [ -n "$GIT" ]; then
+      if [ -n "${GIT:-}" ]; then
         $GIT add "$file"
         $GIT commit -q -m "File deleted" -- "$file"
       fi
@@ -228,7 +228,7 @@ if [ "${1:-}" = "--new" ]; then
     tmpfile="$tmpmd.ics"
     awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"
     mv "$tmpfile" "$file"
-    if [ -n "$GIT" ]; then
+    if [ -n "${GIT:-}" ]; then
       $GIT add "$file"
       $GIT commit -q -m "File added" -- "$file"
     fi
@@ -244,7 +244,7 @@ if [ "${1:-}" = "--toggle-completed" ]; then
   tmpfile=$(mktemp)
   awk "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
-  if [ -n "$GIT" ]; then
+  if [ -n "${GIT:-}" ]; then
     $GIT add "$file"
     $GIT commit -q -m "Completed toggle" -- "$file"
   fi
@@ -258,7 +258,7 @@ if [ "${1:-}" = "--increase-priority" ]; then
   tmpfile=$(mktemp)
   awk -v delta="1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
-  if [ -n "$GIT" ]; then
+  if [ -n "${GIT:-}" ]; then
     $GIT add "$file"
     $GIT commit -q -m "Priority increased" -- "$file"
   fi
@@ -272,7 +272,7 @@ if [ "${1:-}" = "--decrease-priority" ]; then
   tmpfile=$(mktemp)
   awk -v delta="-1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
   mv "$tmpfile" "$file"
-  if [ -n "$GIT" ]; then
+  if [ -n "${GIT:-}" ]; then
     $GIT add "$file"
     $GIT commit -q -m "Priority decreased" -- "$file"
   fi
@@ -390,7 +390,7 @@ if [ "$checksum" != "$(cksum "$filetmp")" ]; then
   file_new="$filetmp.ics"
   awk "$AWK_UPDATE" "$filetmp" "$file" >"$file_new"
   mv "$file_new" "$file"
-  if [ -n "$GIT" ]; then
+  if [ -n "${GIT:-}" ]; then
     $GIT add "$file"
     $GIT commit -q -m "File modified" -- "$file"
   fi
