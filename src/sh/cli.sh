@@ -1,34 +1,94 @@
+# Git
+if [ "${1:-}" = "--git-init" ]; then
+  shift
+  if [ -n "${GIT:-}" ]; then
+    err "Git already enabled"
+    return 1
+  fi
+  if ! command -v "git" >/dev/null; then
+    err "Git not installed"
+    return 1
+  fi
+  git -C "$ROOT" init
+  git -C "$ROOT" add -A
+  git -C "$ROOT" commit -m 'Initial commit: Start git tracking'
+  exit
+fi
+
+if [ "${1:-}" = "--git" ]; then
+  shift
+  if [ -z "${GIT:-}" ]; then
+    err "Git not supported, run \`$0 --git-init\` first"
+    return 1
+  fi
+  $GIT "$@"
+  exit
+fi
+
 # Generate new entry
 if [ "${1:-}" = "--new" ]; then
   shift
-  collection=$(printf "%s" "$COLLECTION_LABELS" | tr ';' '\n' | $FZF --delimiter='=' --with-nth=2 --accept-nth=1)
-  file=""
-  while [ -f "$file" ] || [ -z "$file" ]; do
-    uuid=$($UUIDGEN)
-    file="$ROOT/$collection/$uuid.ics"
-  done
-  tmpmd=$(mktemp --suffix='.md')
-  {
-    echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
-    echo "::: <| <!-- specify the due date for to-dos, can be empty, a date string, or even \"next Sunday\" -->"
-    echo "# <!-- write summary here -->"
-    echo "> <!-- comma-separated list of categories -->"
-    echo ""
-  } >"$tmpmd"
-  checksum=$(cksum "$tmpmd")
-
-  # Open in editor
-  $EDITOR "$tmpmd" >/dev/tty
-
-  # Update if changes are detected
-  if [ "$checksum" != "$(cksum "$tmpmd")" ]; then
-    tmpfile="$tmpmd.ics"
-    awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"
-    mv "$tmpfile" "$file"
-    if [ -n "${GIT:-}" ]; then
-      $GIT add "$file"
-      $GIT commit -q -m "File added" -- "$file"
-    fi
-  fi
-  rm "$tmpmd"
+  __new
 fi
+
+# Build query
+while [ -n "${1:-}" ]; do
+  case "${1:-}" in
+  "--completed")
+    shift
+    cliquery="${cliquery:-} ✅"
+    ;;
+  "--no-completed")
+    shift
+    cliquery="${cliquery:-} !✅"
+    ;;
+  "--open")
+    shift
+    cliquery="${cliquery:-} 🔲"
+    ;;
+  "--no-open")
+    shift
+    cliquery="${cliquery:-} !🔲"
+    ;;
+  "--tasks")
+    shift
+    cliquery="${cliquery:-} ✅ | 🔲"
+    ;;
+  "--no-tasks")
+    shift
+    cliquery="${cliquery:-} !✅ !🔲"
+    ;;
+  "--notes")
+    shift
+    cliquery="${cliquery:-} 🗒️"
+    ;;
+  "--no-notes")
+    shift
+    cliquery="${cliquery:-} !🗒️"
+    ;;
+  "--journal")
+    shift
+    cliquery="${cliquery:-} 📘"
+    ;;
+  "--no-journal")
+    shift
+    cliquery="${cliquery:-} !📘"
+    ;;
+  "--filter")
+    shift
+    cliquery="${cliquery:-} $1"
+    shift
+    ;;
+  "--no-filter")
+    shift
+    cliquery="${cliquery:-} !$1"
+    shift
+    ;;
+  *)
+    err "Unknown option \"$1\""
+    exit 1
+    ;;
+  esac
+done
+query=${cliquery:-!✅}
+export query

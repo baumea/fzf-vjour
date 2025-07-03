@@ -2,20 +2,14 @@
 
 set -eu
 
-err() {
-  echo "❌ $1" >/dev/tty
-}
+# Helper functions
+. "sh/helper.sh"
 
-if [ -z "${FZF_VJOUR_USE_EXPORTED:-}" ]; then
-  # Read configuration
-  . "sh/config.sh"
+# Read configuration
+. "sh/config.sh"
 
-  # Load awk scripts
-  . "sh/awkscripts.sh"
-
-  FZF_VJOUR_USE_EXPORTED="yes"
-  export FZF_VJOUR_USE_EXPORTED
-fi
+# Load awk scripts
+. "sh/awkscripts.sh"
 
 __lines() {
   find "$ROOT" -type f -name '*.ics' -print0 | xargs -0 -P 0 \
@@ -54,126 +48,64 @@ if [ "${1:-}" = "--help" ]; then
   exit
 fi
 
-# Git
-. "sh/cligit.sh"
-
-# Command line arguments: Interal use
-. "sh/cli.sh"
+# iCalendar routines
+. "sh/icalendar.sh"
 
 # Command line arguments: Interal use
 . "sh/cliinternal.sh"
 
-while [ -n "${1:-}" ]; do
-  case "${1:-}" in
-  "--completed")
-    shift
-    cliquery="${cliquery:-} ✅"
+# Command line arguments: Interal use
+. "sh/cli.sh"
+
+while true; do
+  query=$(stripws "$query")
+  selection=$(
+    __lines | $FZF --ansi \
+      --query="$query " \
+      --no-sort \
+      --no-hscroll \
+      --with-nth=5.. \
+      --print-query \
+      --accept-nth=4 \
+      --preview="$0 --preview {4}" \
+      --expect="ctrl-n,ctrl-alt-d" \
+      --bind="ctrl-r:reload($0 --reload)" \
+      --bind="ctrl-x:reload($0 --reload --toggle-completed {4})" \
+      --bind="alt-up:reload($0 --reload --change-priority '+1' {4})" \
+      --bind="alt-down:reload($0 --reload --change-priority '-1' {4})" \
+      --bind="alt-0:change-query(!✅)" \
+      --bind="alt-1:change-query(📘)" \
+      --bind="alt-2:change-query(🗒️)" \
+      --bind="alt-3:change-query(✅ | 🔲)" \
+      --bind='focus:transform:[ {3} = "VTODO" ] && echo "rebind(ctrl-x)+rebind(alt-up)+rebind(alt-down)" || echo "unbind(ctrl-x)+unbind(alt-up)+unbind(alt-down)"' \
+      --bind="ctrl-s:execute($SYNC_CMD ; printf 'Press <enter> to continue.'; read -r tmp)"
+  )
+
+  # Line 1: query
+  # Line 2: key ("" for enter)
+  # Line 3: relative file path
+  query=$(echo "$selection" | head -n 1)
+  key=$(echo "$selection" | head -n 2 | tail -n 1)
+  fname=$(echo "$selection" | head -n 3 | tail -n 1)
+  if [ "$fname" = "$key" ]; then
+    fname=""
+  fi
+
+  file="$ROOT/$fname"
+  if [ ! -f "$file" ]; then
+    err "File '$file' does not exist!"
+    return 1
+  fi
+
+  case "$key" in
+  "ctrl-n")
+    __new
     ;;
-  "--no-completed")
-    shift
-    cliquery="${cliquery:-} !✅"
-    ;;
-  "--open")
-    shift
-    cliquery="${cliquery:-} 🔲"
-    ;;
-  "--no-open")
-    shift
-    cliquery="${cliquery:-} !🔲"
-    ;;
-  "--tasks")
-    shift
-    cliquery="${cliquery:-} ✅ | 🔲"
-    ;;
-  "--no-tasks")
-    shift
-    cliquery="${cliquery:-} !✅ !🔲"
-    ;;
-  "--notes")
-    shift
-    cliquery="${cliquery:-} 🗒️"
-    ;;
-  "--no-notes")
-    shift
-    cliquery="${cliquery:-} !🗒️"
-    ;;
-  "--journal")
-    shift
-    cliquery="${cliquery:-} 📘"
-    ;;
-  "--no-journal")
-    shift
-    cliquery="${cliquery:-} !📘"
-    ;;
-  "--filter")
-    shift
-    cliquery="${cliquery:-} $1"
-    shift
-    ;;
-  "--no-filter")
-    shift
-    cliquery="${cliquery:-} !$1"
-    shift
+  "ctrl-alt-d")
+    __delete "$file"
     ;;
   *)
-    err "Unknown option \"$1\""
-    exit 1
+    __edit "$file"
     ;;
   esac
 done
-query=${cliquery:-${FZF_QUERY:-!✅}}
-query=$(echo "$query" | sed "s/^ *//" | sed "s/ *$//")
-
-selection=$(
-  __lines | $FZF --ansi \
-    --query="$query " \
-    --no-sort \
-    --no-hscroll \
-    --ellipsis='' \
-    --with-nth=4.. \
-    --accept-nth=3 \
-    --preview="$0 --preview {}" \
-    --bind="ctrl-r:reload-sync($0 --reload)" \
-    --bind="ctrl-alt-d:become($0 --delete {})" \
-    --bind="ctrl-x:become($0 --toggle-completed {})" \
-    --bind="alt-up:become($0 --increase-priority {})" \
-    --bind="alt-down:become($0 --decrease-priority {})" \
-    --bind="ctrl-n:become($0 --new)" \
-    --bind="alt-0:change-query(!✅)" \
-    --bind="alt-1:change-query(📘)" \
-    --bind="alt-2:change-query(🗒️)" \
-    --bind="alt-3:change-query(✅ | 🔲)" \
-    --bind="ctrl-s:execute($SYNC_CMD ; printf 'Press <enter> to continue.'; read -r tmp)"
-)
-if [ -z "$selection" ]; then
-  return 0
-fi
-
-file="$ROOT/$selection"
-
-if [ ! -f "$file" ]; then
-  echo "ERROR: File '$file' does not exist!" >/dev/tty
-  return 1
-fi
-
-# Prepare file to be edited
-filetmp=$(mktemp --suffix='.md')
-awk "$AWK_EXPORT" "$file" >"$filetmp"
-checksum=$(cksum "$filetmp")
-
-# Open in editor
-$EDITOR "$filetmp" >/dev/tty
-
-# Update only if changes are detected
-if [ "$checksum" != "$(cksum "$filetmp")" ]; then
-  file_new="$filetmp.ics"
-  awk "$AWK_UPDATE" "$filetmp" "$file" >"$file_new"
-  mv "$file_new" "$file"
-  if [ -n "${GIT:-}" ]; then
-    $GIT add "$file"
-    $GIT commit -q -m "File modified" -- "$file"
-  fi
-fi
-rm "$filetmp"
-
-exec "$0"

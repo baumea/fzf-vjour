@@ -110,6 +110,7 @@ ENDFILE {
   {
     print 10,
           "-",
+          type,
           "-",
           RED "ERROR: file '" fpath "' contains whitespaces!" OFF
     exit
@@ -195,6 +196,7 @@ ENDFILE {
 
   print psort,
         mod,
+        type,
         fpath,
         collection,
         datecolor d OFF,
