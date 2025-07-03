@@ -91,7 +91,7 @@ while true; do
       --bind="alt-2:change-query(🗒️)" \
       --bind="alt-3:change-query(✅ | 🔲)" \
       --bind='focus:transform:[ {3} = "VTODO" ] && echo "rebind(ctrl-x)+rebind(alt-up)+rebind(alt-down)" || echo "unbind(ctrl-x)+unbind(alt-up)+unbind(alt-down)"' \
-      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && $GIT commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)"
+      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)"
   )
 
   # Line 1: query
