@@ -68,7 +68,7 @@ while true; do
       --print-query \
       --accept-nth=4 \
       --preview="$0 --preview {4}" \
-      --expect="ctrl-n,ctrl-alt-d" \
+      --expect="ctrl-n,ctrl-alt-d,alt-v" \
       --bind="ctrl-r:reload($0 --reload)" \
       --bind="ctrl-x:reload($0 --reload --toggle-completed {4})" \
       --bind="alt-up:reload($0 --reload --change-priority '+1' {4})" \
@@ -103,6 +103,9 @@ while true; do
     ;;
   "ctrl-alt-d")
     __delete "$file"
+    ;;
+  "alt-v")
+    $EDITOR "$file"
     ;;
   *)
     __edit "$file"

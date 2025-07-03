@@ -84,12 +84,17 @@ In addition, there are the following keybindings:
 | `ctrl-x` | Toggle task completion |
 | `alt-up` | Increase task priority |
 | `alt-down` | Decrease task priority |
+| `alt-v` | View bare iCalendar file |
 | `alt-0` | Default view: Journal, notes, and _open_ tasks |
 | `alt-1` | Display journal entries |
 | `alt-2` | Display notes |
 | `alt-3` | Display all tasks |
 
 You may also invoke the script with `--help` to see further command-line options. 
+
+Git support
+-----------
+You can track your entries with `git` by simply running `fzf-vjour --git-init`.
 
 Limitations
 -----------
