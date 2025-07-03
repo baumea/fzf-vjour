@@ -50,6 +50,7 @@ BEGIN {
   # flag_journal:   symbol for journal entries
   # flag_note:      symbol for note entries
   # flag_priority   symbol for prior. task
+  # flag_attachment symbol for attachment
   # style_collection
   # style_date
   # style_summary
@@ -76,6 +77,7 @@ BEGIN {
 BEGINFILE {
   type = "";
   prop = "";
+  att = "";
   delete c;
 }
 
@@ -90,6 +92,11 @@ BEGINFILE {
 /^(CATEGORIES|PRIORITY|STATUS|SUMMARY|COMPLETED|DUE|DTSTART|DURATION|CREATED|DTSTAMP|LAST-MODIFIED)/ {
   prop = $1;
   c[prop] = $0;
+  next;
+}
+/^ATTACH/ {
+  prop = ""
+  att = 1;
   next;
 }
 /^[^ ]/ && prop {
@@ -193,6 +200,9 @@ ENDFILE {
   # categories
   categories = cat ? cat : " "
 
+  # attachments
+  att = att ? flag_attachment " " : ""
+
   # filename
   # FILENAME
 
@@ -203,6 +213,6 @@ ENDFILE {
         collection,
         datecolor d OFF,
         flag,
-        priotext summarycolor summary OFF,
+        priotext att summarycolor summary OFF,
         style_category categories OFF;
 }

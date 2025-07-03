@@ -23,6 +23,7 @@ __lines() {
     -v flag_journal="$FLAG_JOURNAL" \
     -v flag_note="$FLAG_NOTE" \
     -v flag_priority="$FLAG_PRIORITY" \
+    -v flag_attachment="$FLAG_ATTACHMENT" \
     -v style_collection="$STYLE_COLLECTION" \
     -v style_date="$STYLE_DATE" \
     -v style_summary="$STYLE_SUMMARY" \
@@ -66,6 +67,9 @@ fi
 # Command line arguments: Interal use
 . "sh/cli.sh"
 
+# Attachment handling
+. "sh/attachment.sh"
+
 while true; do
   query=$(stripws "$query")
   selection=$(
@@ -77,7 +81,7 @@ while true; do
       --print-query \
       --accept-nth=4 \
       --preview="$0 --preview {4}" \
-      --expect="ctrl-n,ctrl-alt-d,alt-v" \
+      --expect="ctrl-n,ctrl-alt-d,alt-v,ctrl-a" \
       --bind="ctrl-r:reload($0 --reload)" \
       --bind="ctrl-x:reload($0 --reload --toggle-completed {4})" \
       --bind="alt-up:reload($0 --reload --change-priority '+1' {4})" \
@@ -115,6 +119,9 @@ while true; do
     ;;
   "alt-v")
     $EDITOR "$file"
+    ;;
+  "ctrl-a")
+    __attachment_view "$file"
     ;;
   *)
     __edit "$file"

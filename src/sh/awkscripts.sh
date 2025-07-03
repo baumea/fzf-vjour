@@ -39,3 +39,31 @@ AWK_UPDATE=$(
 EOF
 )
 export AWK_UPDATE
+
+AWK_ATTACH=$(
+  cat <<'EOF'
+@@include awk/attach.awk
+EOF
+)
+export AWK_ATTACH
+
+AWK_ATTACHDD=$(
+  cat <<'EOF'
+@@include awk/attachdd.awk
+EOF
+)
+export AWK_ATTACHDD
+
+AWK_ATTACHLS=$(
+  cat <<'EOF'
+@@include awk/attachls.awk
+EOF
+)
+export AWK_ATTACHLS
+
+AWK_ATTACHRM=$(
+  cat <<'EOF'
+@@include awk/attachrm.awk
+EOF
+)
+export AWK_ATTACHRM

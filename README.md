@@ -86,6 +86,7 @@ In addition, there are the following keybindings:
 | `ctrl-x` | Toggle task completion |
 | `alt-up` | Increase task priority |
 | `alt-down` | Decrease task priority |
+| `ctrl-a` | Open attachments view |
 | `alt-v` | View bare iCalendar file |
 | `alt-0` | Default view: Journal, notes, and _open_ tasks |
 | `alt-1` | Display journal entries |
@@ -93,6 +94,16 @@ In addition, there are the following keybindings:
 | `alt-3` | Display all tasks |
 
 You may also invoke the script with `--help` to see further command-line options. 
+
+In the attachment view, you may use the following keys:
+| Key | Action |
+| --- | ------ |
+| `enter` | Open attachment |
+| `j` | Down |
+| `k` | Up |
+| `w` | Toggle line wrap |
+| `ctrl-a` | Add attachment |
+| `ctrl-alt-d` | Delete attachment |
 
 Git support
 -----------
@@ -123,7 +134,7 @@ Here is a list of some currently present limitations.
 - Timezone agnostic: Timezone specifications are ignored.
 - Time agnostic: We use the date portion only of date-time specifications.
 - No alarms or notifications
-- No attachments
+- Inline attachments only
 - No recurrences
 
 License

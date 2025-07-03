@@ -43,3 +43,5 @@ if command -v "git" >/dev/null && [ -d "$ROOT/.git" ]; then
   GIT="git -C $ROOT"
   export GIT
 fi
+
+export OPEN=${OPEN:-open}
