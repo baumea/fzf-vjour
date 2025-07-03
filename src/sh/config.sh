@@ -5,10 +5,11 @@ if [ ! -f "$CONFIGFILE" ]; then
 fi
 # shellcheck source=/dev/null
 . "$CONFIGFILE"
-if [ -z "${ROOT:-}" ] || [ -z "${SYNC_CMD:-}" ] || [ -z "${COLLECTION_LABELS:-}" ]; then
+if [ -z "${ROOT:-}" ] || [ -z "${COLLECTION_LABELS:-}" ]; then
   err "Configuration is incomplete."
   exit 1
 fi
+SYNC_CMD="${SYNC_CMD:-}"
 export ROOT
 export SYNC_CMD
 export COLLECTION_LABELS

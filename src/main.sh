@@ -91,24 +91,21 @@ while true; do
       --bind="alt-2:change-query(🗒️)" \
       --bind="alt-3:change-query(✅ | 🔲)" \
       --bind='focus:transform:[ {3} = "VTODO" ] && echo "rebind(ctrl-x)+rebind(alt-up)+rebind(alt-down)" || echo "unbind(ctrl-x)+unbind(alt-up)+unbind(alt-down)"' \
-      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)"
+      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)" ||
+      true
   )
 
   # Line 1: query
   # Line 2: key ("" for enter)
   # Line 3: relative file path
+  lines=$(echo "$selection" | wc -l)
+  if [ "$lines" -eq 1 ]; then
+    return 0
+  fi
   query=$(echo "$selection" | head -n 1)
   key=$(echo "$selection" | head -n 2 | tail -n 1)
   fname=$(echo "$selection" | head -n 3 | tail -n 1)
-  if [ "$fname" = "$key" ]; then
-    fname=""
-  fi
-
   file="$ROOT/$fname"
-  if [ ! -f "$file" ]; then
-    err "File '$file' does not exist!"
-    return 1
-  fi
 
   case "$key" in
   "ctrl-n")
@@ -123,7 +120,7 @@ while true; do
   "ctrl-a")
     __attachment_view "$file"
     ;;
-  *)
+  "")
     __edit "$file"
     ;;
   esac
