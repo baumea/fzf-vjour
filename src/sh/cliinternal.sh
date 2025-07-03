@@ -27,7 +27,7 @@ if [ "${1:-}" = "--reload" ]; then
     shift
     fname="$1"
     shift
-    __change_priority "$delta" "$fname" >>/tmp/foo
+    __change_priority "$delta" "$fname" >/dev/null
     ;;
   esac
   __lines

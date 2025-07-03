@@ -1,4 +1,4 @@
-CONFIGFILE="$HOME/.config/fzf-vjour/config"
+CONFIGFILE="${CONFIGFILE:-$HOME/.config/fzf-vjour/config}"
 if [ ! -f "$CONFIGFILE" ]; then
   err "Configuration '$CONFIGFILE' not found."
   exit 1
@@ -41,5 +41,5 @@ export CAT
 
 if command -v "git" >/dev/null && [ -d "$ROOT/.git" ]; then
   GIT="git -C $ROOT"
+  export GIT
 fi
-export GIT

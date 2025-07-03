@@ -25,12 +25,9 @@ __change_priority() {
   shift
   fname="$1"
   shift
-  echo "call to __change_priority with delta=$delta and fname=$fname" >>/tmp/foo
   file="$ROOT/$fname"
   tmpfile=$(mktemp)
-  echo "        tmpfile=$tmpfile" >>/tmp/foo
   awk -v delta="$delta" "$AWK_ALTERTODO" "$file" >"$tmpfile"
-  echo "        lines=$(wc -l tmpfile)" >>/tmp/foo
   mv "$tmpfile" "$file"
   if [ -n "${GIT:-}" ]; then
     $GIT add "$file"

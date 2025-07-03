@@ -5,6 +5,9 @@ set -eu
 # Helper functions
 . "sh/helper.sh"
 
+# Read theme
+. "sh/theme.sh"
+
 # Read configuration
 . "sh/config.sh"
 
@@ -15,10 +18,16 @@ __lines() {
   find "$ROOT" -type f -name '*.ics' -print0 | xargs -0 -P 0 \
     awk \
     -v collection_labels="$COLLECTION_LABELS" \
-    -v flag_open="🔲" \
-    -v flag_completed="✅" \
-    -v flag_journal="📘" \
-    -v flag_note="🗒️" \
+    -v flag_open="$FLAG_OPEN" \
+    -v flag_completed="$FLAG_COMPLETED" \
+    -v flag_journal="$FLAG_JOURNAL" \
+    -v flag_note="$FLAG_NOTE" \
+    -v flag_priority="$FLAG_PRIORITY" \
+    -v style_collection="$STYLE_COLLECTION" \
+    -v style_date="$STYLE_DATE" \
+    -v style_summary="$STYLE_SUMMARY" \
+    -v style_expired="$STYLE_EXPIRED" \
+    -v style_category="$STYLE_CATEGORY" \
     "$AWK_LIST" |
     sort -g -r
 }

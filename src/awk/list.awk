@@ -49,6 +49,12 @@ BEGIN {
   # flag_completed: symbol for completed to-dos
   # flag_journal:   symbol for journal entries
   # flag_note:      symbol for note entries
+  # flag_priority   symbol for prior. task
+  # style_collection
+  # style_date
+  # style_summary
+  # style_expired
+  # style_category
 
   FS = "[:;]";
   # Collections
@@ -59,10 +65,6 @@ BEGIN {
     collection2label[m[1]] = m[2];
   }
   # Colors
-  GREEN = "\033[1;32m";
-  RED = "\033[1;31m";
-  WHITE = "\033[1;97m";
-  CYAN = "\033[1;36m";
   OFF = "\033[m";
 
   # For date comparision
@@ -112,7 +114,7 @@ ENDFILE {
           "-",
           type,
           "-",
-          RED "ERROR: file '" fpath "' contains whitespaces!" OFF
+          style_expired "ERROR: file '" fpath "' contains whitespaces!" OFF
     exit
   }
   # Collection name
@@ -145,7 +147,7 @@ ENDFILE {
   priotext = ""
   if (pri > 0)
   {
-    priotext = "❗(" pri ") "
+    priotext = flag_priority "(" pri ") "
     psort = 10 - pri
   }
 
@@ -158,8 +160,8 @@ ENDFILE {
 
   # Date field. For VTODO entries, we show the due date, for journal entries,
   # the associated date.
-  datecolor = CYAN;
-  summarycolor = GREEN;
+  datecolor = style_date
+  summarycolor = style_summary
 
   if (type == "VTODO")
   {
@@ -167,8 +169,8 @@ ENDFILE {
     d = due ? due : (dur ? dts " for " dur : "");
     if (d && d <= today && sta != "COMPLETED")
     {
-      datecolor = RED;
-      summarycolor = RED;
+      datecolor = style_expired;
+      summarycolor = style_expired;
     }
   } else {
     d = dts
@@ -202,5 +204,5 @@ ENDFILE {
         datecolor d OFF,
         flag,
         priotext summarycolor summary OFF,
-        WHITE categories OFF;
+        style_category categories OFF;
 }

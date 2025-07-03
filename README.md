@@ -70,6 +70,8 @@ item_types = ["VJOURNAL", "VTODO"]
 ...
 ```
 
+You may also specify the location of the configuration file with the environment `CONFIGFILE`.
+
 Usage
 -----
 Use the default `fzf` keys to navigate your notes, e.g., `ctrl-j` and `ctrl-k` for going down/up in the list.
@@ -95,6 +97,24 @@ You may also invoke the script with `--help` to see further command-line options
 Git support
 -----------
 You can track your entries with `git` by simply running `fzf-vjour --git-init`.
+
+Extended configuration / Theming
+--------------------------------
+You may override any of the following parameters (shown with default values) in
+the configuration file:
+```sh
+FLAG_OPEN=🔲
+FLAG_COMPLETED=✅
+FLAG_JOURNAL=📘
+FLAG_NOTE=🗒️
+FLAG_PRIORITY=❗
+
+STYLE_COLLECTION="$FAINT$WHITE"
+STYLE_DATE="$CYAN"
+STYLE_SUMMARY="$GREEN"
+STYLE_EXPIRED="$RED"
+STYLE_CATEGORY="$WHITE"
+```
 
 Limitations
 -----------
