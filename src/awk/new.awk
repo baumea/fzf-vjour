@@ -1,46 +1,4 @@
-# Escape string to be used as content in iCalendar files.
-#
-# @input str: String to escape
-# @return: Escaped string
-function escape(str)
-{
-  gsub("\\\\", "\\\\", str)
-  gsub(";",    "\\;",  str)
-  gsub(",",    "\\,",  str)
-  return str
-}
-
-# Escape string to be used as content in iCalendar files.
-#
-# @input str: String to escape
-# @return: Escaped string
-function escape_categories(str)
-{
-  gsub("\\\\", "\\\\", str)
-  gsub(";",    "\\;",  str)
-  return str
-}
-
-# Print property with its content and fold according to the iCalendar
-# specification.
-#
-# @local variables: i, s
-# @input nameparam: Property name with optional parameters
-# @input content: Escaped content
-function print_fold(nameparam, content,    i, s)
-{
-  i = 74 - length(nameparam)
-  s = substr(content, 1, i)
-  print nameparam s
-  s = substr(content, i+1, 73)
-  i = i + 73
-  while (s)
-  {
-    print " " s
-    s = substr(content, i+1, 73)
-    i = i + 73
-  }
-}
+@include "lib/awk/icalendar.awk"
 
 BEGIN { 
   FS=":"; 
@@ -62,10 +20,10 @@ desc { desc = desc "\\n" escape($0); next; }
   }
   summary = substr($0, 1, 2) != "# " ? "" : escape(substr($0, 3));
   getline;
-  categories = substr($0, 1, 1) != ">" ? "" : escape(substr($0, 3));
+  categories = substr($0, 1, 1) != ">" ? "" : escape_but_commas(substr($0, 3));
   getline; # This line should be empty
   getline; # First line of description
-  desc = escape($0);
+  desc = "D" escape($0);
   next;
 }
 END {
@@ -81,7 +39,7 @@ END {
   print "BEGIN:VCALENDAR";
   print "VERSION:2.0";
   print "CALSCALE:GREGORIAN";
-  print "PRODID:-//fab//awk//EN";
+  print "PRODID:-//fzf-vjour//awk//EN";
   print "BEGIN:" type;
   print "DTSTAMP:" zulu;
   print "UID:" uid;
@@ -104,7 +62,7 @@ END {
   }
   if (summary)    print_fold("SUMMARY:",     summary);
   if (categories) print_fold("CATEGORIES:",  categories);
-  if (desc)       print_fold("DESCRIPTION:", desc);
+  if (desc)       print_fold("DESCRIPTION:", substr(desc, 2));
   print "END:" type;
   print "END:VCALENDAR"
 }

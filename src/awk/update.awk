@@ -1,46 +1,4 @@
-# Escape string to be used as content in iCalendar files.
-#
-# @input str: String to escape
-# @return: Escaped string
-function escape(str)
-{
-  gsub("\\\\", "\\\\", str)
-  gsub(";",    "\\;",  str)
-  gsub(",",    "\\,",  str)
-  return str
-}
-
-# Escape string to be used as content in iCalendar files.
-#
-# @input str: String to escape
-# @return: Escaped string
-function escape_categories(str)
-{
-  gsub("\\\\", "\\\\", str)
-  gsub(";",    "\\;",  str)
-  return str
-}
-
-# Print property with its content and fold according to the iCalendar
-# specification.
-#
-# @local variables: i, s
-# @input nameparam: Property name with optional parameters
-# @input content: Escaped content
-function print_fold(nameparam, content,    i, s)
-{
-  i = 74 - length(nameparam)
-  s = substr(content, 1, i)
-  print nameparam s
-  s = substr(content, i+1, 73)
-  i = i + 73
-  while (s)
-  {
-    print " " s
-    s = substr(content, i+1, 73)
-    i = i + 73
-  }
-}
+@include "lib/awk/icalendar.awk"
 
 BEGIN { 
   FS=":";
@@ -69,10 +27,10 @@ NR == FNR {
   }
   summary = substr($0, 1, 2) != "# " ? "" : escape(substr($0, 3));
   getline;
-  categories = substr($0, 1, 1) != ">" ? "" : escape_categories(substr($0, 3));
+  categories = substr($0, 1, 1) != ">" ? "" : escape_but_commas(substr($0, 3));
   getline; # This line should be empty
   getline; # First line of description
-  desc = escape($0);
+  desc = "D" escape($0);
   next;
 }
 
@@ -88,7 +46,7 @@ NR == FNR {
   if (due) print "DUE;VALUE=DATE:" due;
   print_fold("SUMMARY:",     summary);
   print_fold("CATEGORIES:",  categories);
-  print_fold("DESCRIPTION:", desc);
+  print_fold("DESCRIPTION:", substr(desc, 2));
   type = "";
 }
 { print }

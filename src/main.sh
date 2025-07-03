@@ -8,90 +8,11 @@ err() {
 
 if [ -z "${FZF_VJOUR_USE_EXPORTED:-}" ]; then
   # Read configuration
-  CONFIGFILE="$HOME/.config/fzf-vjour/config"
-  if [ ! -f "$CONFIGFILE" ]; then
-    err "Configuration '$CONFIGFILE' not found."
-    exit 1
-  fi
-  # shellcheck source=/dev/null
-  . "$CONFIGFILE"
-  if [ -z "${ROOT:-}" ] || [ -z "${SYNC_CMD:-}" ] || [ -z "${COLLECTION_LABELS:-}" ]; then
-    err "Configuration is incomplete."
-    exit 1
-  fi
-  export ROOT
-  export SYNC_CMD
-  export COLLECTION_LABELS
+  . "sh/config.sh"
 
-  # Tools
-  if command -v "fzf" >/dev/null; then
-    FZF="fzf"
-  else
-    err "Did not find the command-line fuzzy finder fzf."
-    exit 1
-  fi
-  export FZF
+  # Load awk scripts
+  . "sh/awkscripts.sh"
 
-  if command -v "uuidgen" >/dev/null; then
-    UUIDGEN="uuidgen"
-  else
-    err "Did not find the uuidgen command."
-    exit 1
-  fi
-  export UUIDGEN
-
-  if command -v "bat" >/dev/null; then
-    CAT="bat"
-  elif command -v "batcat" >/dev/null; then
-    CAT="batcat"
-  fi
-  CAT=${CAT:+$CAT --color=always --style=numbers --language=md}
-  CAT=${CAT:-cat}
-  export CAT
-
-  ### AWK SCRIPTS
-  AWK_ALTERTODO=$(
-    cat <<'EOF'
-@@include src/awk/altertodo.awk
-EOF
-  )
-  export AWK_ALTERTODO
-
-  AWK_EXPORT=$(
-    cat <<'EOF'
-@@include src/awk/export.awk
-EOF
-  )
-  export AWK_EXPORT
-
-  AWK_GET=$(
-    cat <<'EOF'
-@@include src/awk/get.awk
-EOF
-  )
-  export AWK_GET
-
-  AWK_LIST=$(
-    cat <<'EOF'
-@@include src/awk/list.awk
-EOF
-  )
-  export AWK_LIST
-
-  AWK_NEW=$(
-    cat <<'EOF'
-@@include src/awk/new.awk
-EOF
-  )
-  export AWK_NEW
-
-  AWK_UPDATE=$(
-    cat <<'EOF'
-@@include src/awk/update.awk
-EOF
-  )
-  export AWK_UPDATE
-  ### END OF AWK SCRIPTS
   FZF_VJOUR_USE_EXPORTED="yes"
   export FZF_VJOUR_USE_EXPORTED
 fi
@@ -134,155 +55,13 @@ if [ "${1:-}" = "--help" ]; then
 fi
 
 # Git
-if command -v "git" >/dev/null && [ -d "$ROOT/.git" ]; then
-  GIT="git -C $ROOT"
-fi
-if [ "${1:-}" = "--git-init" ]; then
-  shift
-  if [ -n "${GIT:-}" ]; then
-    err "Git already enabled"
-    return 1
-  fi
-  if ! command -v "git" >/dev/null; then
-    err "Git not installed"
-    return 1
-  fi
-  git -C "$ROOT" init
-  git -C "$ROOT" add -A
-  git -C "$ROOT" commit -m 'Initial commit: Start git tracking'
-  exit
-fi
-if [ "${1:-}" = "--git" ]; then
-  shift
-  if [ -z "${GIT:-}" ]; then
-    err "Git not supported, run \`$0 --git-init\` first"
-    return 1
-  fi
-  $GIT "$@"
-  exit
-fi
+. "sh/cligit.sh"
 
-# Command line arguments to be self-contained
-# Generate preview of file from selection
-if [ "${1:-}" = "--preview" ]; then
-  shift
-  name=$(echo "$1" | cut -d ' ' -f 3)
-  shift
-  file="$ROOT/$name"
-  awk -v field="DESCRIPTION" "$AWK_GET" "$file" |
-    $CAT
-  exit
-fi
-# Delete file from selection
-if [ "${1:-}" = "--delete" ]; then
-  shift
-  name=$(echo "$1" | cut -d ' ' -f 3)
-  shift
-  file="$ROOT/$name"
-  summary=$(awk -v field="SUMMARY" "$AWK_GET" "$file")
-  while true; do
-    printf "Do you want to delete the entry with the title \"%s\"? (yes/no): " "$summary" >/dev/tty
-    read -r yn
-    case $yn in
-    "yes")
-      rm -v "$file"
-      if [ -n "${GIT:-}" ]; then
-        $GIT add "$file"
-        $GIT commit -q -m "File deleted" -- "$file"
-      fi
-      break
-      ;;
-    "no")
-      break
-      ;;
-    *)
-      echo "Please answer \"yes\" or \"no\"." >/dev/tty
-      ;;
-    esac
-  done
-fi
-# Generate new entry
-if [ "${1:-}" = "--new" ]; then
-  shift
-  collection=$(echo "$COLLECTION_LABELS" | tr ';' '\n' | $FZF --delimiter='=' --with-nth=2 --accept-nth=1)
-  file=""
-  while [ -f "$file" ] || [ -z "$file" ]; do
-    uuid=$($UUIDGEN)
-    file="$ROOT/$collection/$uuid.ics"
-  done
-  tmpmd=$(mktemp --suffix='.md')
-  {
-    echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
-    echo "::: <| <!-- specify the due date for to-dos, can be empty, a date string, or even \"next Sunday\" -->"
-    echo "# <!-- write summary here -->"
-    echo "> <!-- comma-separated list of categories -->"
-    echo ""
-  } >"$tmpmd"
-  checksum=$(cksum "$tmpmd")
+# Command line arguments: Interal use
+. "sh/cli.sh"
 
-  # Open in editor
-  $EDITOR "$tmpmd" >/dev/tty
-
-  # Update if changes are detected
-  if [ "$checksum" != "$(cksum "$tmpmd")" ]; then
-    tmpfile="$tmpmd.ics"
-    awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"
-    mv "$tmpfile" "$file"
-    if [ -n "${GIT:-}" ]; then
-      $GIT add "$file"
-      $GIT commit -q -m "File added" -- "$file"
-    fi
-  fi
-  rm "$tmpmd"
-fi
-# Toggle completed flag
-if [ "${1:-}" = "--toggle-completed" ]; then
-  shift
-  name=$(echo "$1" | cut -d ' ' -f 3)
-  shift
-  file="$ROOT/$name"
-  tmpfile=$(mktemp)
-  awk "$AWK_ALTERTODO" "$file" >"$tmpfile"
-  mv "$tmpfile" "$file"
-  if [ -n "${GIT:-}" ]; then
-    $GIT add "$file"
-    $GIT commit -q -m "Completed toggle" -- "$file"
-  fi
-fi
-# Increase priority
-if [ "${1:-}" = "--increase-priority" ]; then
-  shift
-  name=$(echo "$1" | cut -d ' ' -f 3)
-  shift
-  file="$ROOT/$name"
-  tmpfile=$(mktemp)
-  awk -v delta="1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
-  mv "$tmpfile" "$file"
-  if [ -n "${GIT:-}" ]; then
-    $GIT add "$file"
-    $GIT commit -q -m "Priority increased" -- "$file"
-  fi
-fi
-# Decrease priority
-if [ "${1:-}" = "--decrease-priority" ]; then
-  shift
-  name=$(echo "$1" | cut -d ' ' -f 3)
-  shift
-  file="$ROOT/$name"
-  tmpfile=$(mktemp)
-  awk -v delta="-1" "$AWK_ALTERTODO" "$file" >"$tmpfile"
-  mv "$tmpfile" "$file"
-  if [ -n "${GIT:-}" ]; then
-    $GIT add "$file"
-    $GIT commit -q -m "Priority decreased" -- "$file"
-  fi
-fi
-# Reload view
-if [ "${1:-}" = "--reload" ]; then
-  shift
-  __lines
-  exit
-fi
+# Command line arguments: Interal use
+. "sh/cliinternal.sh"
 
 while [ -n "${1:-}" ]; do
   case "${1:-}" in

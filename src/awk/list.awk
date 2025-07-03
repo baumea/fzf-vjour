@@ -3,50 +3,8 @@
 # See https://datatracker.ietf.org/doc/html/rfc5545 for the RFC 5545 that
 # describes iCalendar, and its syntax
 
-# Make string single-line
-#
-# @input str: String
-# @return: String without newlines
-function singleline(str) {
-  gsub("\\n", " ", str)
-  return str
-}
+@include "lib/awk/icalendar.awk"
 
-# Isolate and unescape the content part of an iCalendar line.
-#
-# @local variables: i, c, c2, res
-# @input str: String
-# @return: Unescaped string
-function unescape(str,    i, c, c2, res) {
-  for(i=1; i<=length(str);i++) {
-    c = substr(str, i, 1)
-    if (c != "\\") {
-      res = res c
-      continue
-    }
-    i++
-    c2 = substr(str, i, 1)
-    if (c2 == "n" || c2 == "N") {
-      res = res "\n"
-      continue
-    }
-    # Alternatively, c2 is "\\" or "," or ";". In each case, append res with
-    # c2. If the strings has been escaped correctly, then the character c2
-    # cannot be anything else. To be fail-safe, simply append res with c2.
-    res = res c2
-  }
-  return res
-}
-
-# Isolate content part of an iCalendar line, and unescape.
-#
-# @input str: String
-# @return: Unescaped content part
-function getcontent(str) {
-  return unescape(substr(str, index(str, ":") + 1))
-}
-
-# formatdate
 # Generate kind-of-pretty date strings.
 #
 # @local variables: ts, ts_y, ts_m, ts_d, delta
@@ -127,7 +85,7 @@ BEGINFILE {
   nextfile
 }
 
-/^(CATEGORIES|DESCRIPTION|PRIORITY|STATUS|SUMMARY|COMPLETED|DUE|DTSTART|DURATION|CREATED|DTSTAMP|LAST-MODIFIED)/ {
+/^(CATEGORIES|PRIORITY|STATUS|SUMMARY|COMPLETED|DUE|DTSTART|DURATION|CREATED|DTSTAMP|LAST-MODIFIED)/ {
   prop = $1;
   c[prop] = $0;
   next;
@@ -163,7 +121,6 @@ ENDFILE {
   # Process content lines
   # strings
   cat = singleline(unescape(getcontent(c["CATEGORIES"])))
-  des = singleline(unescape(getcontent(c["DESCRIPTION"])))
   sta = singleline(unescape(getcontent(c["STATUS"])))
   sum = singleline(unescape(getcontent(c["SUMMARY"])))
 
