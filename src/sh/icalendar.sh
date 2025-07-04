@@ -109,7 +109,21 @@ __delete() {
 
 # Add file
 __new() {
-  collection=$(printf "%s" "$COLLECTION_LABELS" | tr ';' '\n' | $FZF --delimiter='=' --with-nth=2 --accept-nth=1)
+  collection=$(printf "%s" "$COLLECTION_LABELS" |
+    tr ';' '\n' |
+    $FZF \
+      --prompt="Choose collection> " \
+      --no-sort \
+      --tac \
+      --margin="30%,30%" \
+      --delimiter='=' \
+      --border=bold \
+      --border-label="Collections" \
+      --with-nth=2 \
+      --accept-nth=1 || true)
+  if [ -z "$collection" ]; then
+    return
+  fi
   file=""
   while [ -f "$file" ] || [ -z "$file" ]; do
     uuid=$($UUIDGEN)

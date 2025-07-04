@@ -90,9 +90,10 @@ In addition, there are the following keybindings:
 | `ctrl-t` | Filter by category |
 | `alt-v` | View bare iCalendar file |
 | `alt-0` | Default view: Journal, notes, and _open_ tasks |
-| `alt-1` | Display journal entries |
-| `alt-2` | Display notes |
-| `alt-3` | Display all tasks |
+| `alt-j` | Display journal entries |
+| `alt-n` | Display notes |
+| `alt-t` | Display all tasks |
+| `alt-[1-9]` | Display first, second, ... collection |
 
 You may also invoke the script with `--help` to see further command-line options. 
 

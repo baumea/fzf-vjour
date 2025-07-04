@@ -13,6 +13,14 @@ SYNC_CMD="${SYNC_CMD:-}"
 export ROOT
 export SYNC_CMD
 export COLLECTION_LABELS
+for i in $(seq 9); do
+  label=$(printf "%s" "$COLLECTION_LABELS" | cut -d ';' -f "$i" | cut -d '=' -f 2)
+  if [ -z "$label" ]; then
+    export COLLECTION_COUNT=$((i - 1))
+    break
+  fi
+  export "COLLECTION$i=$label"
+done
 
 # Tools
 if command -v "fzf" >/dev/null; then

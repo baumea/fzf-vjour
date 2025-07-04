@@ -89,12 +89,21 @@ while true; do
       --bind="ctrl-x:reload($0 --reload --toggle-completed {4})" \
       --bind="alt-up:reload($0 --reload --change-priority '+1' {4})" \
       --bind="alt-down:reload($0 --reload --change-priority '-1' {4})" \
-      --bind="alt-0:change-query(!✅)" \
-      --bind="alt-1:change-query(📘)" \
-      --bind="alt-2:change-query(🗒️)" \
-      --bind="alt-3:change-query(✅ | 🔲)" \
+      --bind="alt-0:change-query(!$FLAG_COMPLETED )" \
+      --bind="alt-1:change-query(${COLLECTION1:-} )" \
+      --bind="alt-2:change-query(${COLLECTION2:-} )" \
+      --bind="alt-3:change-query(${COLLECTION3:-} )" \
+      --bind="alt-4:change-query(${COLLECTION4:-} )" \
+      --bind="alt-5:change-query(${COLLECTION5:-} )" \
+      --bind="alt-6:change-query(${COLLECTION6:-} )" \
+      --bind="alt-7:change-query(${COLLECTION7:-} )" \
+      --bind="alt-8:change-query(${COLLECTION8:-} )" \
+      --bind="alt-9:change-query(${COLLECTION9:-} )" \
+      --bind="alt-j:change-query($FLAG_JOURNAL )" \
+      --bind="alt-n:change-query($FLAG_NOTE )" \
+      --bind="alt-t:change-query($FLAG_COMPLETED | $FLAG_OPEN )" \
       --bind='focus:transform:[ {3} = "VTODO" ] && echo "rebind(ctrl-x)+rebind(alt-up)+rebind(alt-down)" || echo "unbind(ctrl-x)+unbind(alt-up)+unbind(alt-down)"' \
-      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-echo} add -A; ${GIT:-echo} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)" ||
+      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-echo} add -A && ${GIT:-echo} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)" ||
       true
   )
 
