@@ -87,6 +87,7 @@ In addition, there are the following keybindings:
 | `alt-up` | Increase task priority |
 | `alt-down` | Decrease task priority |
 | `ctrl-a` | Open attachments view |
+| `ctrl-t` | Filter by category |
 | `alt-v` | View bare iCalendar file |
 | `alt-0` | Default view: Journal, notes, and _open_ tasks |
 | `alt-1` | Display journal entries |
@@ -99,8 +100,6 @@ In the attachment view, you may use the following keys:
 | Key | Action |
 | --- | ------ |
 | `enter` | Open attachment |
-| `j` | Down |
-| `k` | Up |
 | `w` | Toggle line wrap |
 | `ctrl-a` | Add attachment |
 | `ctrl-alt-d` | Delete attachment |

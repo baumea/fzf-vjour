@@ -5,13 +5,6 @@ EOF
 )
 export AWK_ALTERTODO
 
-AWK_EXPORT=$(
-  cat <<'EOF'
-@@include awk/export.awk
-EOF
-)
-export AWK_EXPORT
-
 AWK_GET=$(
   cat <<'EOF'
 @@include awk/get.awk

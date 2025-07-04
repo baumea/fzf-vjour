@@ -70,6 +70,9 @@ fi
 # Attachment handling
 . "sh/attachment.sh"
 
+# Categories handling
+. "sh/categories.sh"
+
 while true; do
   query=$(stripws "$query")
   selection=$(
@@ -81,7 +84,7 @@ while true; do
       --print-query \
       --accept-nth=4 \
       --preview="$0 --preview {4}" \
-      --expect="ctrl-n,ctrl-alt-d,alt-v,ctrl-a" \
+      --expect="ctrl-n,ctrl-alt-d,alt-v,ctrl-a,ctrl-t" \
       --bind="ctrl-r:reload($0 --reload)" \
       --bind="ctrl-x:reload($0 --reload --toggle-completed {4})" \
       --bind="alt-up:reload($0 --reload --change-priority '+1' {4})" \
@@ -91,7 +94,7 @@ while true; do
       --bind="alt-2:change-query(🗒️)" \
       --bind="alt-3:change-query(✅ | 🔲)" \
       --bind='focus:transform:[ {3} = "VTODO" ] && echo "rebind(ctrl-x)+rebind(alt-up)+rebind(alt-down)" || echo "unbind(ctrl-x)+unbind(alt-up)+unbind(alt-down)"' \
-      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)" ||
+      --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-echo} add -A; ${GIT:-echo} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)" ||
       true
   )
 
@@ -119,6 +122,9 @@ while true; do
     ;;
   "ctrl-a")
     __attachment_view "$file"
+    ;;
+  "ctrl-t")
+    query="'$(__select_category)'"
     ;;
   "")
     __edit "$file"

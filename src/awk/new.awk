@@ -4,25 +4,36 @@ BEGIN {
   FS=":"; 
   zulu = strftime("%Y%m%dT%H%M%SZ", systime(), 1);
 }
-desc                 { desc = desc "\\n" escape($0);                  next; }
-/^::: \|>/ && !start { gsub("\"", ""); start = substr(zulu, 1, 8);    next; }
-/^::: <\| / && !due  { gsub("\"", ""); due = substr($0, 8);           next; }
-/^# / && !summary    { summary = escape(substr($0, 3));               next; }
-/^> / && !categories { categories = escape_but_commas(substr($0, 3)); next; }
+desc                 { desc = desc "\\n" escape($0);                      next; }
+/^::: \|>/ && !start { gsub("\"", ""); start = substr(zulu, 1, 8);        next; }
+/^::: <\|/ && !due   { gsub("\"", ""); due = "D" substr($0, 8);           next; }
+/^# / && !summary    { summary = "S" escape(substr($0, 3));               next; }
+/^> / && !categories { categories = "C" escape_but_commas(substr($0, 3)); next; }
 !$0 && !el           { el = 1;                                        next; }
 !el                  { print "Unrecognized header on line "NR": " $0 > "/dev/stderr"; exit 1; }
-                     { desc = "D" escape($0);                         next; }
+                     { desc = "D" escape($0);                             next; }
 END {
   # Sanitize input
   type = due ? "VTODO" : "VJOURNAL"
+  due = substr(due, 2)
+  summary = substr(summary, 2)
+  categories = substr(categories, 2)
+  desc = substr(desc, 2)
+  if (categories) {
+    split(categories, a, ",")
+    categories = ""
+    for (i in a)
+      if (a[i])
+        categories = categories "," a[i]
+    categories = substr(categories, 2)
+  }
   if (due) {
     # Use command line `date` for parsing
     cmd = "date -d \"" due "\" +\"%Y%m%d\"";
-    suc = cmd | getline res
+    suc = cmd | getline due
     close(cmd)
     if (suc != 1)
       exit 1
-    due = res ? res : ""
   }
 
   # print ical
@@ -52,7 +63,7 @@ END {
   }
   if (summary)    print_fold("SUMMARY:",     summary);
   if (categories) print_fold("CATEGORIES:",  categories);
-  if (desc)       print_fold("DESCRIPTION:", substr(desc, 2));
+  if (desc)       print_fold("DESCRIPTION:", desc);
   print "END:" type;
   print "END:VCALENDAR"
 }

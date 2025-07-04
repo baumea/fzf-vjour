@@ -131,6 +131,12 @@ ENDFILE {
   # Process content lines
   # strings
   cat = singleline(unescape(getcontent(c["CATEGORIES"])))
+  split(cat, a, ",")
+  cat = ""
+  for (i in a)
+    if (a[i])
+      cat = cat "," a[i]
+  cat = substr(cat, 2)
   sta = singleline(unescape(getcontent(c["STATUS"])))
   sum = singleline(unescape(getcontent(c["SUMMARY"])))
 

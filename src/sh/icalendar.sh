@@ -42,7 +42,16 @@ __edit() {
   file="$1"
   shift
   tmpmd=$(mktemp --suffix='.md')
-  awk "$AWK_EXPORT" "$file" >"$tmpmd"
+  due=$(awk -v field="DUE" -v format="date" "$AWK_GET" "$file")
+  if [ -n "$due" ]; then
+    echo "::: <| $due" >"$tmpmd"
+  fi
+  {
+    echo "# $(awk -v field="SUMMARY" -v oneline=1 "$AWK_GET" "$file")"
+    echo "> $(awk -v field="CATEGORIES" -v format="csv" -v oneline=1 "$AWK_GET" "$file")"
+    echo ""
+    awk -v field="DESCRIPTION" "$AWK_GET" "$file"
+  } >>"$tmpmd"
   checksum=$(cksum "$tmpmd")
 
   # Open in editor

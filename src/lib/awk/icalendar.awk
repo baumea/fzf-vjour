@@ -104,8 +104,11 @@ function getcontent(str) {
 # @local variables: tz
 # @input dt_param: iCalendar DTSTART or DTEND parameter string
 # @input dt_content: iCalendar DTSTART or DTEND content string
-# @return: date or date-time string that can be used in date (1)
-function parse_dt(dt_param, dt_content,    tz, a, i, k) {
+# @return: date or date-time string that can be used in date (1). In
+#          particular, date strings are of the form YYYY-MM-DD and datetime
+#          strings are of the form YYYY-MM-DD HH:MM:SS[Z]. If the field
+#          containts timezone information, then this is prepended.
+function parse_dt(dt_param, dt_content,    tz, a, i, k, date, time) {
   if (dt_param) {
     split(dt_param, a, ";")
     for (i in a) {
@@ -117,9 +120,9 @@ function parse_dt(dt_param, dt_content,    tz, a, i, k) {
     }
   }
   # Get date/date-time
-  return length(dt_content) == 8 ?
-    dt dt_content :
-    dt gensub(/^([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})(Z)?$/, "\\1 \\2:\\3:\\4\\5", "g", dt_content)
+  date = substr(dt_content, 1, 4) "-" substr(dt_content, 5, 2) "-" substr(dt_content, 7, 2)
+  time = length(dt_content) == 8 ? "" : " " substr(dt_content, 10, 2) ":" substr(dt_content, 12, 2) ":" substr(dt_content, 14)
+  return tz date time
 }
 
 # Map iCalendar duration specification into the format to be used in date (1).
