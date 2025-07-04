@@ -103,7 +103,7 @@ while true; do
       --bind="alt-n:change-query($FLAG_NOTE )" \
       --bind="alt-t:change-query($FLAG_COMPLETED | $FLAG_OPEN )" \
       --bind='focus:transform:[ {3} = "VTODO" ] && echo "rebind(ctrl-x)+rebind(alt-up)+rebind(alt-down)" || echo "unbind(ctrl-x)+unbind(alt-up)+unbind(alt-down)"' \
-      --bind="ctrl-w:toggle-preview-wrap" \
+      --bind="alt-w:toggle-preview-wrap" \
       --bind="ctrl-d:preview-half-page-down" \
       --bind="ctrl-u:preview-half-page-up" \
       --bind="ctrl-s:execute($SYNC_CMD; [ -n \"${GIT:-}\" ] && ${GIT:-echo} add -A && ${GIT:-echo} commit -am 'Synchronized'; printf 'Press <enter> to continue.'; read -r tmp)" ||
