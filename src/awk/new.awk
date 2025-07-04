@@ -2,36 +2,26 @@
 
 BEGIN { 
   FS=":"; 
-  type = "VJOURNAL"; 
   zulu = strftime("%Y%m%dT%H%M%SZ", systime(), 1);
 }
-desc { desc = desc "\\n" escape($0); next; }
-{
-  if (substr($0, 1, 6) == "::: |>")
-  {
-    start = substr(zulu, 1, 8);
-    getline;
-  }
-  if (substr($0, 1, 6) == "::: <|")
-  {
-    type = "VTODO"
-    due = substr($0, 8);
-    getline;
-  }
-  summary = substr($0, 1, 2) != "# " ? "" : escape(substr($0, 3));
-  getline;
-  categories = substr($0, 1, 1) != ">" ? "" : escape_but_commas(substr($0, 3));
-  getline; # This line should be empty
-  getline; # First line of description
-  desc = "D" escape($0);
-  next;
-}
+desc                 { desc = desc "\\n" escape($0);                  next; }
+/^::: \|>/ && !start { gsub("\"", ""); start = substr(zulu, 1, 8);    next; }
+/^::: <\| / && !due  { gsub("\"", ""); due = substr($0, 8);           next; }
+/^# / && !summary    { summary = escape(substr($0, 3));               next; }
+/^> / && !categories { categories = escape_but_commas(substr($0, 3)); next; }
+!$0 && !el           { el = 1;                                        next; }
+!el                  { print "Unrecognized header on line "NR": " $0 > "/dev/stderr"; exit 1; }
+                     { desc = "D" escape($0);                         next; }
 END {
   # Sanitize input
+  type = due ? "VTODO" : "VJOURNAL"
   if (due) {
     # Use command line `date` for parsing
     cmd = "date -d \"" due "\" +\"%Y%m%d\"";
-    cmd | getline res
+    suc = cmd | getline res
+    close(cmd)
+    if (suc != 1)
+      exit 1
     due = res ? res : ""
   }
 

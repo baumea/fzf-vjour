@@ -41,24 +41,32 @@ __change_priority() {
 __edit() {
   file="$1"
   shift
-  filetmp=$(mktemp --suffix='.md')
-  awk "$AWK_EXPORT" "$file" >"$filetmp"
-  checksum=$(cksum "$filetmp")
+  tmpmd=$(mktemp --suffix='.md')
+  awk "$AWK_EXPORT" "$file" >"$tmpmd"
+  checksum=$(cksum "$tmpmd")
 
   # Open in editor
-  $EDITOR "$filetmp" >/dev/tty
+  $EDITOR "$tmpmd" >/dev/tty
 
   # Update only if changes are detected
-  if [ "$checksum" != "$(cksum "$filetmp")" ]; then
-    file_new="$filetmp.ics"
-    awk "$AWK_UPDATE" "$filetmp" "$file" >"$file_new"
-    mv "$file_new" "$file"
-    if [ -n "${GIT:-}" ]; then
-      $GIT add "$file"
-      $GIT commit -q -m "File modified" -- "$file"
+  while [ "$checksum" != "$(cksum "$tmpmd")" ]; do
+    tmpfile="$tmpmd.ics"
+    if awk "$AWK_UPDATE" "$tmpmd" "$file" >"$tmpfile"; then
+      mv "$tmpfile" "$file"
+      if [ -n "${GIT:-}" ]; then
+        $GIT add "$file"
+        $GIT commit -q -m "File modified" -- "$file"
+      fi
+      break
+    else
+      rm -f "$tmpfile"
+      err "Failed to update entry. Press <enter> to continue."
+      read -r tmp
+      # Re-open in editor
+      $EDITOR "$tmpmd" >/dev/tty
     fi
-  fi
-  rm "$filetmp"
+  done
+  rm "$tmpmd"
 }
 
 # Delete file
@@ -112,14 +120,22 @@ __new() {
   $EDITOR "$tmpmd" >/dev/tty
 
   # Update if changes are detected
-  if [ "$checksum" != "$(cksum "$tmpmd")" ]; then
+  while [ "$checksum" != "$(cksum "$tmpmd")" ]; do
     tmpfile="$tmpmd.ics"
-    awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"
-    mv "$tmpfile" "$file"
-    if [ -n "${GIT:-}" ]; then
-      $GIT add "$file"
-      $GIT commit -q -m "File added" -- "$file"
+    if awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"; then
+      mv "$tmpfile" "$file"
+      if [ -n "${GIT:-}" ]; then
+        $GIT add "$file"
+        $GIT commit -q -m "File added" -- "$file"
+      fi
+      break
+    else
+      rm -f "$tmpfile"
+      err "Failed to create new entry. Press <enter> to continue."
+      read -r tmp
+      # Re-open in editor
+      $EDITOR "$tmpmd" >/dev/tty
     fi
-  fi
+  done
   rm "$tmpmd"
 }
