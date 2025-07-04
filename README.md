@@ -94,6 +94,9 @@ In addition, there are the following keybindings:
 | `alt-n` | Display notes |
 | `alt-t` | Display all tasks |
 | `alt-[1-9]` | Display first, second, ... collection |
+| `ctrl-w` | Toggle line-wrap in preview |
+| `ctrl-d` | Scroll down in preview |
+| `ctrl-u` | Scroll up in preview |
 
 You may also invoke the script with `--help` to see further command-line options. 
 
