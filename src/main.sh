@@ -136,7 +136,8 @@ while true; do
     __attachment_view "$file"
     ;;
   "ctrl-t")
-    query="'$(__select_category)'"
+    cat="$(__select_category)"
+    [ -n "$cat" ] && query="'$cat'"
     ;;
   "")
     __edit "$file"
