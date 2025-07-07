@@ -6,7 +6,11 @@ fi
 # shellcheck source=/dev/null
 . "$CONFIGFILE"
 if [ -z "${ROOT:-}" ] || [ -z "${COLLECTION_LABELS:-}" ]; then
-  err "Configuration is incomplete."
+  err "Configuration '$CONFIGFILE' is incomplete."
+  exit 1
+fi
+if [ ! -d "$ROOT" ]; then
+  err "Directory '$ROOT' does not exist."
   exit 1
 fi
 SYNC_CMD="${SYNC_CMD:-}"
@@ -14,7 +18,12 @@ export ROOT
 export SYNC_CMD
 export COLLECTION_LABELS
 for i in $(seq 9); do
+  collection=$(printf "%s" "$COLLECTION_LABELS" | cut -d ';' -f "$i" | cut -d '=' -f 1)
   label=$(printf "%s" "$COLLECTION_LABELS" | cut -d ';' -f "$i" | cut -d '=' -f 2)
+  if [ -n "$label" ] && [ ! -d "$ROOT/$collection" ]; then
+    err "Collection directory for '$label' does not exist."
+    exit 1
+  fi
   if [ -z "$label" ]; then
     export COLLECTION_COUNT=$((i - 1))
     break
@@ -24,7 +33,7 @@ done
 
 # Tools
 if command -v "fzf" >/dev/null; then
-  FZF="fzf"
+  FZF="fzf --black"
 else
   err "Did not find the command-line fuzzy finder fzf."
   exit 1

@@ -1,5 +1,100 @@
 # Interface to modify iCalendar files
 
+# Wrapper to add entry from markdown file
+#
+# @input $1: path to markdown file
+# @input $2: collection to add to
+__add_from_md() {
+  tmpmd="$1"
+  shift
+  collection="$1"
+  shift
+  file=""
+  while [ -f "$file" ] || [ -z "$file" ]; do
+    uuid=$($UUIDGEN)
+    file="$ROOT/$collection/$uuid.ics"
+  done
+  tmpfile="$tmpmd.ics"
+  if awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"; then
+    if [ ! -d "$ROOT/$collection" ]; then
+      mkdir -p "$ROOT/$collection"
+    fi
+    mv "$tmpfile" "$file"
+    if [ -n "${GIT:-}" ]; then
+      $GIT add "$file"
+      $GIT commit -q -m "File added" -- "$file"
+    fi
+  else
+    rm -f "$tmpfile"
+    err "Failed to create new entry."
+  fi
+  rm "$tmpmd"
+}
+
+# Noninteractively add note, and fill description from stdin
+#
+# @input $1: Collection
+# @input $2: Summary
+__add_note() {
+  collection="$1"
+  shift
+  summary="$1"
+  shift
+  tmpmd=$(mktemp --suffix='.md')
+  {
+    echo "# $summary"
+    echo ""
+  } >"$tmpmd"
+  if [ ! -t 0 ]; then
+    cat /dev/stdin >>"$tmpmd"
+  fi
+  __add_from_md "$tmpmd" "$collection"
+}
+
+# Noninteractively add task, and fill description from stdin
+#
+# @input $1: Collection
+# @input $2: Summary
+# @input $3: Due date (optional)
+__add_task() {
+  collection="$1"
+  shift
+  summary="$1"
+  shift
+  due="${1:-}"
+  tmpmd=$(mktemp --suffix='.md')
+  {
+    echo "::: <| $due"
+    echo "# $summary"
+    echo ""
+  } >"$tmpmd"
+  if [ ! -t 0 ]; then
+    cat /dev/stdin >>"$tmpmd"
+  fi
+  __add_from_md "$tmpmd" "$collection"
+}
+
+# Noninteractively add jounral, and fill description from stdin
+#
+# @input $1: Collection
+# @input $2: Summary
+__add_jour() {
+  collection="$1"
+  shift
+  summary="$1"
+  shift
+  tmpmd=$(mktemp --suffix='.md')
+  {
+    echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
+    echo "# $summary"
+    echo ""
+  } >"$tmpmd"
+  if [ ! -t 0 ]; then
+    cat /dev/stdin >>"$tmpmd"
+  fi
+  __add_from_md "$tmpmd" "$collection"
+}
+
 # Toggle completed status of VTODO
 #
 # @input $1: Relative path to iCalendar file
@@ -112,7 +207,9 @@ __new() {
   collection=$(printf "%s" "$COLLECTION_LABELS" |
     tr ';' '\n' |
     $FZF \
+      --ansi \
       --prompt="Choose collection> " \
+      --select-1 \
       --no-sort \
       --tac \
       --margin="30%,30%" \
@@ -146,6 +243,9 @@ __new() {
   while [ "$checksum" != "$(cksum "$tmpmd")" ]; do
     tmpfile="$tmpmd.ics"
     if awk -v uid="$uuid" "$AWK_NEW" "$tmpmd" >"$tmpfile"; then
+      if [ ! -d "$ROOT/$collection" ]; then
+        mkdir -p "$ROOT/$collection"
+      fi
       mv "$tmpfile" "$file"
       if [ -n "${GIT:-}" ]; then
         $GIT add "$file"

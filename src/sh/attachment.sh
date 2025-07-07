@@ -5,7 +5,9 @@ __add_attachment() {
   file="$1"
   shift
   sel=$(
-    $FZF --prompt="Select attachment> " \
+    $FZF \
+      --ansi \
+      --prompt="Select attachment> " \
       --walker="file,hidden" \
       --walker-root="$HOME" \
       --expect="ctrl-c,ctrl-g,ctrl-q,esc"
@@ -137,6 +139,7 @@ __attachment_view() {
   att=$(
     awk "$AWK_ATTACHLS" "$file" |
       $FZF \
+        --ansi \
         --delimiter="\t" \
         --accept-nth=1,2,3,4 \
         --with-nth="Attachment {1}: \"{2}\" {3} ({5})" \

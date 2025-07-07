@@ -35,12 +35,34 @@ __lines() {
 
 # Program starts here
 if [ "${1:-}" = "--help" ]; then
+  bn="$(basename "$0")"
   shift
-  echo "Usage: $0 [--help | --new [FILTER..] | [FILTER..] ]
-  --help                 Show this help and exit
-  --new                  Create new entry and do not exit
-  --git-init             Activate git usage and exit
-  --git <cmd>            Run git command and exit
+  echo "Usage: $bn [OPTION] [FILTER]...
+
+[OPTION]
+    --help                        Show this help and exit
+
+  Git Integration:
+    --git-init                    Activate git usage and exit
+    --git <cmd>                   Run git command and exit
+
+  Interactive Mode:
+    --new [FILTER..]              Create new entry interactively and start
+    [FILTER..]                    Start with the specified filter
+
+  Non-Interactive Mode:
+    --list [FILTER..]             List entries and exit
+    --add-note <summary>          Read note from stdin and add it with the
+                                  specified summary
+    --add-task <summary> [<due>]  Read task from stdin and add it with the
+                                  specified summary and optional due date
+    --add-jour <summary>          Read journal from stdin and add it with the
+                                  specified summary
+    --collection <nr>             Select collection to which the note, task, or
+                                  journal entry is added non-interactively. The
+                                  argument <nr> is the ordinal describing the
+                                  collection. It defaults to the starting value
+                                  of 1.
 
 [FILTER]
   You may specify any of these filters. Filters can be negated using the
@@ -49,12 +71,22 @@ if [ "${1:-}" = "--help" ]; then
   --no-completed is not the same as --open, and similarly, --no-open is not the
   same as --completed.
 
-  --tasks                 Show tasks only
-  --notes                 Show notes only
-  --journal               Show jounral only
-  --completed             Show completed tasks only
-  --open                  Show open tasks only
-  --filter <query>        Specify custom query"
+  --tasks                         Show tasks only
+  --notes                         Show notes only
+  --journal                       Show journal only
+  --completed                     Show completed tasks only
+  --open                          Show open tasks only
+  --filter <query>                Specify custom query
+
+Examples:
+  $bn --git log
+  $bn --new
+  $bn --journal
+  $bn --no-tasks --filter \"Beauregard\"
+  $bn --list --open
+  $bn --add-task \"Improve code to respect timezone information\" \"next month\"
+  cat proof.tex | $bn --add-journal \"Proof of Fixed-point Theorem\" --collection 2
+"
   exit
 fi
 
@@ -64,8 +96,11 @@ fi
 # Command line arguments: Interal use
 . "sh/cliinternal.sh"
 
-# Command line arguments: Interal use
+# Command line arguments
 . "sh/cli.sh"
+
+# Parse command-line filter (if any)
+. "sh/filter.sh"
 
 # Attachment handling
 . "sh/attachment.sh"
@@ -73,10 +108,21 @@ fi
 # Categories handling
 . "sh/categories.sh"
 
+if [ -n "${list_option:-}" ]; then
+  __lines |
+    $FZF \
+      --filter="$query" \
+      --no-sort \
+      --with-nth=5.. |
+    tac
+  exit 0
+fi
+
 while true; do
   query=$(stripws "$query")
   selection=$(
-    __lines | $FZF --ansi \
+    __lines | $FZF \
+      --ansi \
       --query="$query " \
       --no-sort \
       --no-hscroll \

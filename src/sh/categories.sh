@@ -7,7 +7,9 @@ __select_category() {
     sort |
     uniq |
     grep '.' |
-    $FZF --prompt="Select category> " \
+    $FZF \
+      --ansi \
+      --prompt="Select category> " \
       --no-sort \
       --tac \
       --margin="30%,30%" \
