@@ -11,6 +11,12 @@ These entries are stored as [iCalendar](https://datatracker.ietf.org/doc/html/rf
 For instance, you could use this application as a terminal-based counterpart of [jtx Board](https://jtx.techbee.at/) in a setup
 with a CalDav server, such as [Radicale](https://radicale.org/), and a synchronization tool like [vdirsyncer](http://vdirsyncer.pimutils.org/).
 
+Demo
+----
+Run the script `./scripts/generate_demo.sh` to generate a demo.
+
+![Demo screenshot](./demo/screenshot.png)
+
 Installation
 ------------
 
