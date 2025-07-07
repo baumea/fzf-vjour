@@ -47,7 +47,9 @@ EOF
 cat <<EOF | $FVJ --add-jour "Today's code" --collection 2
 # Source code of current program
 
+\`\`\`sh
 $(cat "$0")
+\`\`\`
 EOF
 $FVJ --add-task "Look for typos in readme" --collection 2 <"README.md"
 ## End of data
