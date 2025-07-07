@@ -2,17 +2,24 @@
 
 set -eu
 
-# Helper functions
-. "sh/helper.sh"
-
-# Read theme
-. "sh/theme.sh"
-
-# Read configuration
-. "sh/config.sh"
-
-# Load awk scripts
-. "sh/awkscripts.sh"
+if [ ! "${SCRIPT_LOADED:-}" ]; then
+  # Helper functions
+  . "sh/helper.sh"
+  # Read theme
+  . "sh/theme.sh"
+  # Read configuration
+  . "sh/config.sh"
+  # Load awk scripts
+  . "sh/awkscripts.sh"
+  # iCalendar routines
+  . "sh/icalendar.sh"
+  # Attachment handling
+  . "sh/attachment.sh"
+  # Categories handling
+  . "sh/categories.sh"
+  # Mark as loaded
+  export SCRIPT_LOADED=1
+fi
 
 __lines() {
   find "$ROOT" -type f -name '*.ics' -print0 | xargs -0 -P 0 \
@@ -90,9 +97,6 @@ Examples:
   exit
 fi
 
-# iCalendar routines
-. "sh/icalendar.sh"
-
 # Command line arguments: Interal use
 . "sh/cliinternal.sh"
 
@@ -101,12 +105,6 @@ fi
 
 # Parse command-line filter (if any)
 . "sh/filter.sh"
-
-# Attachment handling
-. "sh/attachment.sh"
-
-# Categories handling
-. "sh/categories.sh"
 
 if [ -n "${list_option:-}" ]; then
   __lines |
