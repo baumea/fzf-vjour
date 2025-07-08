@@ -22,7 +22,7 @@ if [ ! "${SCRIPT_LOADED:-}" ]; then
 fi
 
 __lines() {
-  find "$ROOT" -type f -name '*.ics' -print0 | xargs -0 -P 0 \
+  find "$ROOT" -mindepth 2 -maxdepth 2 -type f -name '*.ics' -print0 | xargs -0 -P 0 \
     awk \
     -v collection_labels="$COLLECTION_LABELS" \
     -v flag_open="$FLAG_OPEN" \
