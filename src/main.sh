@@ -159,7 +159,7 @@ while true; do
   # Line 3: relative file path
   lines=$(echo "$selection" | wc -l)
   if [ "$lines" -eq 1 ]; then
-    return 0
+    exit 0
   fi
   query=$(echo "$selection" | head -n 1)
   key=$(echo "$selection" | head -n 2 | tail -n 1)
