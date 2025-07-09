@@ -2,21 +2,24 @@
 
 set -eu
 
+# Always load functions
+# Helper functions
+. "sh/helper.sh"
+# iCalendar routines
+. "sh/icalendar.sh"
+# Attachment handling
+. "sh/attachment.sh"
+# Categories handling
+. "sh/categories.sh"
+
+# Load environment variables only when not yet loaded
 if [ ! "${SCRIPT_LOADED:-}" ]; then
-  # Helper functions
-  . "sh/helper.sh"
-  # Read theme
-  . "sh/theme.sh"
   # Read configuration
   . "sh/config.sh"
+  # Read theme
+  . "sh/theme.sh"
   # Load awk scripts
   . "sh/awkscripts.sh"
-  # iCalendar routines
-  . "sh/icalendar.sh"
-  # Attachment handling
-  . "sh/attachment.sh"
-  # Categories handling
-  . "sh/categories.sh"
   # Mark as loaded
   export SCRIPT_LOADED=1
 fi
