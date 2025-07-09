@@ -2,6 +2,9 @@
 
 set -eu
 
+# Set terminal title
+printf '\033]0;%s\007' "fzf-vjour | Journal, notes, and tasks"
+
 # Always load functions
 # Helper functions
 . "sh/helper.sh"
