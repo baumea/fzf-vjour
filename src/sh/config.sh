@@ -1,4 +1,5 @@
 CONFIGFILE="${CONFIGFILE:-$HOME/.config/fzf-vjour/config}"
+export TERMINAL_TITLE="🗃️ fzf-vjour | Journal, notes, and tasks"
 if [ ! -f "$CONFIGFILE" ]; then
   err "Configuration '$CONFIGFILE' not found."
   exit 1
@@ -14,9 +15,11 @@ if [ ! -d "$ROOT" ]; then
   exit 1
 fi
 SYNC_CMD="${SYNC_CMD:-}"
+SET_TERMINAL_TITLE="${SET_TERMINAL_TITLE:-yes}"
 export ROOT
 export SYNC_CMD
 export COLLECTION_LABELS
+export SET_TERMINAL_TITLE
 for i in $(seq 9); do
   collection=$(printf "%s" "$COLLECTION_LABELS" | cut -d ';' -f "$i" | cut -d '=' -f 1)
   label=$(printf "%s" "$COLLECTION_LABELS" | cut -d ';' -f "$i" | cut -d '=' -f 2)

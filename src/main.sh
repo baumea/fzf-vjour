@@ -2,9 +2,6 @@
 
 set -eu
 
-# Set terminal title
-printf '\033]0;%s\007' "fzf-vjour | Journal, notes, and tasks"
-
 # Always load functions
 # Helper functions
 . "sh/helper.sh"
@@ -120,6 +117,11 @@ if [ -n "${list_option:-}" ]; then
       --with-nth=5.. |
     tac
   exit 0
+fi
+
+# Set terminal title
+if [ "$SET_TERMINAL_TITLE" = "yes" ]; then
+  printf '\033]0;%s\007' "$TERMINAL_TITLE"
 fi
 
 while true; do

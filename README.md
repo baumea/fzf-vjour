@@ -78,6 +78,9 @@ item_types = ["VJOURNAL", "VTODO"]
 
 You may also specify the location of the configuration file with the environment `CONFIGFILE`.
 
+By default, `fzf-vjour` sets a descriptive terminal title.
+This can be bypassed by specyfing `SET_TERMINAL_TITLE="no"` in the configuration file.
+
 Usage
 -----
 Use the default `fzf` keys to navigate your notes, e.g., `ctrl-j` and `ctrl-k` for going down/up in the list.
