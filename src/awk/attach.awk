@@ -15,21 +15,21 @@ function write_attachment(    line, aline, fl) {
   fl = 1
   while (getline aline <file) {
     line = line aline
-    if (fl && length(line) >= 73) {
-      print substr(line, 1, 73)
-      line = substr(line, 74)
+    if (fl && length(line) >= 72) {
+      print substr(line, 1, 72)"\r"
+      line = substr(line, 73)
       fl = 0
     }
-    while (length(line) >= 72) {
-      print " "substr(line, 1, 72)
-      line = substr(line, 73)
+    while (length(line) >= 71) {
+      print " "substr(line, 1, 71)"\r"
+      line = substr(line, 72)
     }
   }
   if (line)
-    print " "line
+    print " "line"\r"
 }
 
 # AWK program
 
-/^END:(VTODO|VJOURNAL)$/ { write_attachment() }
+/^END:(VTODO|VJOURNAL)/ { write_attachment() }
 { print }

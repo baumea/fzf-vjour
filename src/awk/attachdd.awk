@@ -1,4 +1,5 @@
 BEGIN                       { FS="[:;]" }
+{ gsub("\r", "") }
 /^END:(VTODO|VJOURNAL)$/    { ins = 0; exit }
 /^[^ ]/ && a                { a = 0 }
 /^ / && a && p              { print substr($0, 2); }

@@ -37,33 +37,33 @@ END {
   }
 
   # print ical
-  print "BEGIN:VCALENDAR";
-  print "VERSION:2.0";
-  print "CALSCALE:GREGORIAN";
-  print "PRODID:-//fzf-vjour//awk//EN";
-  print "BEGIN:" type;
-  print "DTSTAMP:" zulu;
-  print "UID:" uid;
-  print "CLASS:PRIVATE";
-  print "CREATED:" zulu;
-  print "SEQUENCE:1";
-  print "LAST-MODIFIED:" zulu;
+  print_cr("BEGIN:VCALENDAR")
+  print_cr("VERSION:2.0")
+  print_cr("CALSCALE:GREGORIAN")
+  print_cr("PRODID:-//fzf-vjour//awk//EN")
+  print_cr("BEGIN:" type)
+  print_cr("DTSTAMP:" zulu)
+  print_cr("UID:" uid)
+  print_cr("CLASS:PRIVATE")
+  print_cr("CREATED:" zulu)
+  print_cr("SEQUENCE:1")
+  print_cr("LAST-MODIFIED:" zulu)
   if (type == "VTODO")
   {
-    print "STATUS:NEEDS-ACTION";
-    print "PERCENT-COMPLETE:0";
+    print_cr("STATUS:NEEDS-ACTION")
+    print_cr("PERCENT-COMPLETE:0")
     if (due)
-      print "DUE;VALUE=DATE:" due; 
+      print_cr("DUE;VALUE=DATE:" due)
   }
   else
   {
-    print "STATUS:FINAL";
+    print_cr("STATUS:FINAL")
     if (start)
-      print "DTSTART;VALUE=DATE:" start;
+      print_cr("DTSTART;VALUE=DATE:" start)
   }
   if (summary)    print_fold("SUMMARY:",     summary);
   if (categories) print_fold("CATEGORIES:",  categories);
   if (desc)       print_fold("DESCRIPTION:", desc);
-  print "END:" type;
-  print "END:VCALENDAR"
+  print_cr("END:" type)
+  print_cr("END:VCALENDAR")
 }

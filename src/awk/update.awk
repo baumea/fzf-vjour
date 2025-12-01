@@ -46,9 +46,9 @@ due && type == "VJOURNAL"         { print "Notes and journal entries do not have
 /^SEQUENCE/ && type               { seq = $2;                                          next; } # store sequence number and skip
 /^END:/ && type == $2 {
   seq = seq ? seq + 1 : 1;
-  print "SEQUENCE:" seq;
-  print "LAST-MODIFIED:" zulu;
-  if (due) print "DUE;VALUE=DATE:" due;
+  print_cr("SEQUENCE:" seq);
+  print_cr("LAST-MODIFIED:" zulu);
+  if (due) print_cr("DUE;VALUE=DATE:" due);
   print_fold("SUMMARY:",     summary);
   print_fold("CATEGORIES:",  categories);
   print_fold("DESCRIPTION:", desc);

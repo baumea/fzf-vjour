@@ -16,6 +16,7 @@
 # print content of field `field`
 BEGIN                     { FS = ":"; regex = "^" field; }
 BEGINFILE                 { type = ""; line = ""; }
+{ gsub("\r", "") }
 /^BEGIN:(VJOURNAL|VTODO)/ { type = $2 }
 /^END:/ && $2 == type     { nextfile }
 $0 ~ regex                { line = $0;                 next; }

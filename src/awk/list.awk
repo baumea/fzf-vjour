@@ -81,6 +81,8 @@ BEGINFILE {
   delete c;
 }
 
+{ gsub("\r", "") }
+
 /^BEGIN:(VJOURNAL|VTODO)/ {
   type = $2
 }

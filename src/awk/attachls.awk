@@ -34,6 +34,7 @@ function att_info(i, str,    cnt, k, info) {
 }
 
 BEGIN                      { FS="[:;]"; OFS="\t" }
+{ gsub("\r", "") }
 /^END:(VTODO|VJOURNAL)$/   { ins = 0; exit }
 l && !r                    { att_info(i, l); l = "" }
 /^ / && r                  { l = l substr($0, 2); r = cont_reading($0) }

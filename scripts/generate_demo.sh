@@ -28,10 +28,10 @@ cat <<EOF | $FVJ --add-task "Respond to referee report" "yesterday" --collection
 - [x] Report 1: Answer prepared
 - [ ] Report 2: Write response, revise manuscript
 EOF
-echo "Chinese" | $FVJ --add-task "Reserve dinner table" "next Sunday"
+echo "for 5 pax" | $FVJ --add-task "Reserve dinner table" "next Sunday"
 cat <<EOF | $FVJ --add-jour "Demo Coding"
 ### Demo code
-Our demo now contains a script that self-generets the demo.
+Our demo now contains a script that generates this demo.
 It's located in \`./scripts/\`
 There are some upcoming steps:
 
