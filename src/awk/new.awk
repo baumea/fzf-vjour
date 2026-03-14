@@ -5,7 +5,7 @@ BEGIN {
   zulu = strftime("%Y%m%dT%H%M%SZ", systime(), 1);
 }
 desc                 { desc = desc "\\n" escape($0);                      next; }
-/^::: \|>/ && !start { gsub("\"", ""); start = substr(zulu, 1, 8);        next; }
+/^::: \|>/ && !start { gsub("\"", ""); start = "S" substr($0, 8);         next; }
 /^::: <\|/ && !due   { gsub("\"", ""); due = "D" substr($0, 8);           next; }
 /^# / && !summary    { summary = "S" escape(substr($0, 3));               next; }
 /^> / && !categories { categories = "C" escape_but_commas(substr($0, 3)); next; }
@@ -15,6 +15,7 @@ desc                 { desc = desc "\\n" escape($0);                      next; 
 END {
   # Sanitize input
   type = due ? "VTODO" : "VJOURNAL"
+  start = substr(start, 2)
   due = substr(due, 2)
   summary = substr(summary, 2)
   categories = substr(categories, 2)
@@ -26,6 +27,14 @@ END {
       if (a[i])
         categories = categories "," a[i]
     categories = substr(categories, 2)
+  }
+  if (start) {
+    # Use command line `date` for parsing
+    cmd = "date -d \"" start "\" +\"%Y%m%d\"";
+    suc = cmd | getline start
+    close(cmd)
+    if (suc != 1)
+      exit 1
   }
   if (due) {
     # Use command line `date` for parsing
