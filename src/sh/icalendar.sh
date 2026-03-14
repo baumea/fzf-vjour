@@ -85,7 +85,7 @@ __add_jour() {
   shift
   tmpmd=$(mktemp --suffix='.md')
   {
-    echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
+    echo "::: |> <!-- specify the date for journal entries, can be empty, a date string, or even \"next Sunday\" -->"
     echo "# $summary"
     echo ""
   } >"$tmpmd"
@@ -137,9 +137,13 @@ __edit() {
   file="$1"
   shift
   tmpmd=$(mktemp --suffix='.md')
+  start=$(awk -v field="DTSTART" -v format="date" "$AWK_GET" "$file")
+  if [ -n "$start" ]; then
+    echo "::: |> $start" >>"$tmpmd"
+  fi
   due=$(awk -v field="DUE" -v format="date" "$AWK_GET" "$file")
   if [ -n "$due" ]; then
-    echo "::: <| $due" >"$tmpmd"
+    echo "::: <| $due" >>"$tmpmd"
   fi
   {
     echo "# $(awk -v field="SUMMARY" -v oneline=1 "$AWK_GET" "$file")"
@@ -228,7 +232,7 @@ __new() {
   done
   tmpmd=$(mktemp --suffix='.md')
   {
-    echo "::: |> <!-- keep this line to associate the entry to _today_ -->"
+    echo "::: |> <!-- specify the date for journal entries, can be empty, a date string, or even \"next Sunday\" -->"
     echo "::: <| <!-- specify the due date for to-dos, can be empty, a date string, or even \"next Sunday\" -->"
     echo "# <!-- write summary here -->"
     echo "> <!-- comma-separated list of categories -->"
