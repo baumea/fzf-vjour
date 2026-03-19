@@ -7,7 +7,6 @@ BEGIN {
 
 ENDFILE { 
   if (NR == FNR) {
-    start = substr(start, 2)
     due = substr(due, 2)
     summary = substr(summary, 2)
     categories = substr(categories, 2)
@@ -40,8 +39,8 @@ ENDFILE {
 }
 
 NR == FNR && desc                 { desc = desc "\\n" escape($0);                      next; }
-NR == FNR && /^::: \|>/ && !start { gsub("\"", ""); start = "S" substr($0, 8);         next; }
-NR == FNR && /^::: <\|/ && !due   { gsub("\"",""); due = "D" substr($0, 8);            next; }
+NR == FNR && /^::: \|>/ && !start { gsub("\"", ""); start = substr($0, 8);             next; }
+NR == FNR && /^::: <\|/ && !due   { gsub("\"", ""); due = "D" substr($0, 8);           next; }
 NR == FNR && /^# / && !summary    { summary = "S" escape(substr($0, 3));               next; }
 NR == FNR && /^> / && !categories { categories = "C" escape_but_commas(substr($0, 3)); next; }
 NR == FNR && !$0 && !el           { el = 1;                                            next; }
@@ -51,14 +50,14 @@ due && type == "VJOURNAL"         { print "Notes and journal entries do not have
 /^BEGIN:(VJOURNAL|VTODO)/         { type = $2; print;                                  next; }
 /^ / && drop                      {                                                    next; } # drop this folded line
 /^X-ALT-DESC/ && type             { drop = 1;                                          next; } # drop this alternative description
-/^(DTSTART|DUE|SUMMARY|CATEGORIES|DESCRIPTION|LAST-MODIFIED)/ && type { drop = 1;              next; } # skip for now, we will write updated fields at the end
+/^(DTSTART|DUE|SUMMARY|CATEGORIES|DESCRIPTION|LAST-MODIFIED)/ && type { drop = 1;      next; } # skip for now, we will write updated fields at the end
                                   { drop = 0 } # keep everything else
 /^SEQUENCE/ && type               { seq = $2;                                          next; } # store sequence number and skip
 /^END:/ && type == $2 {
   seq = seq ? seq + 1 : 1;
   print_cr("SEQUENCE:" seq);
   print_cr("LAST-MODIFIED:" zulu);
-  if (start && due && due <= start) {print "Due date must be later in time than the start date." > "/dev/stderr"; exit 1;}
+  if (start && due && due < start) {print "Due date cannot be earlier than the start date." > "/dev/stderr"; exit 1;}
   if (start) print_cr("DTSTART;VALUE=DATE:" start);
   if (due) print_cr("DUE;VALUE=DATE:" due);
   print_fold("SUMMARY:",     summary);

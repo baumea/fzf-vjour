@@ -5,7 +5,8 @@ BEGIN {
   zulu = strftime("%Y%m%dT%H%M%SZ", systime(), 1);
 }
 desc                 { desc = desc "\\n" escape($0);                      next; }
-/^::: \|>/ && !start { gsub("\"", ""); start = "S" substr($0, 8);         next; }
+/^::: \|>/ && !start { gsub("\"", ""); i = index($0, "<");
+                       start = i ? substr($0, 8, 8-i) : substr($0, 8);    next; }
 /^::: <\|/ && !due   { gsub("\"", ""); due = "D" substr($0, 8);           next; }
 /^# / && !summary    { summary = "S" escape(substr($0, 3));               next; }
 /^> / && !categories { categories = "C" escape_but_commas(substr($0, 3)); next; }
@@ -15,7 +16,6 @@ desc                 { desc = desc "\\n" escape($0);                      next; 
 END {
   # Sanitize input
   type = due ? "VTODO" : "VJOURNAL"
-  start = substr(start, 2)
   due = substr(due, 2)
   summary = substr(summary, 2)
   categories = substr(categories, 2)

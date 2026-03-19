@@ -66,8 +66,8 @@ if [ "${1:-}" = "--help" ]; then
                                   specified summary
     --add-task <summary> [<due>]  Read task from stdin and add it with the
                                   specified summary and optional due date
-    --add-jour <summary>          Read journal from stdin and add it with the
-                                  specified summary
+    --add-jour <summary> [<date>] Read journal from stdin and add it with the
+                                  specified summary and optional date
     --collection <nr>             Select collection to which the note, task, or
                                   journal entry is added non-interactively. The
                                   argument <nr> is the ordinal describing the

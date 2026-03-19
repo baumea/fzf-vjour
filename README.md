@@ -79,7 +79,7 @@ item_types = ["VJOURNAL", "VTODO"]
 You may also specify the location of the configuration file with the environment `CONFIGFILE`.
 
 By default, `fzf-vjour` sets a descriptive terminal title.
-This can be bypassed by specyfing `SET_TERMINAL_TITLE="no"` in the configuration file.
+This can be bypassed by specifying `SET_TERMINAL_TITLE="no"` in the configuration file.
 
 Usage
 -----
@@ -88,7 +88,7 @@ In addition, there are the following keybindings:
 | Key | Action |
 | --- | ------ |
 | `enter` | Open note/journal/task in your `$EDITOR` |
-| `ctrl-alt-d` | Delete the seleted entry |
+| `ctrl-alt-d` | Delete the selected entry |
 | `ctrl-n` | Make a new entry |
 | `ctrl-r` | Refresh the view |
 | `ctrl-s` | Run the synchronization command |
@@ -116,6 +116,40 @@ In the attachment view, you may use the following keys:
 | `w` | Toggle line wrap |
 | `ctrl-a` | Add attachment |
 | `ctrl-alt-d` | Delete attachment |
+
+Entry types
+-----------
+This applications, as well as [jtx Board](https://jtx.techbee.at/), distinguishes among three entry types.
+
+**Notes** are VJOURNAL entries without dates. Here is an example of a note:
+```md
+# Related research
+> research
+
+Lorem ipsum
+```
+
+**Journal** entries are notes associated to a date (typically to _today_). An example of a journal entry is:
+```md
+::: |> today <!-- specify the date for journal entries -->
+# Alignment for Bell experiment
+> lab
+
+Lorem ipsum
+```
+
+**Tasks** are VTODO entries with an optional due date. An example of a task _with_ a due date is:
+```md
+::: <| next Sunday
+# Finish manuscript
+> research
+```
+Another example of a task _without_ due date is
+```md
+::: <|
+# Acquire Epist. Lett
+> research
+```
 
 Git support
 -----------

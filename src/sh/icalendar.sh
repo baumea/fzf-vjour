@@ -74,18 +74,20 @@ __add_task() {
   __add_from_md "$tmpmd" "$collection"
 }
 
-# Noninteractively add jounral, and fill description from stdin
+# Noninteractively add journal, and fill description from stdin
 #
 # @input $1: Collection
 # @input $2: Summary
+# @input $3: start date (optional, defaults to "today")
 __add_jour() {
   collection="$1"
   shift
   summary="$1"
   shift
+  [ "${1:-}" ] && start=$1 || start="today"
   tmpmd=$(mktemp --suffix='.md')
   {
-    echo "::: |> <!-- specify the date for journal entries, can be empty, a date string, or even \"next Sunday\" -->"
+    echo "::: |> $start"
     echo "# $summary"
     echo ""
   } >"$tmpmd"
@@ -232,7 +234,7 @@ __new() {
   done
   tmpmd=$(mktemp --suffix='.md')
   {
-    echo "::: |> <!-- specify the date for journal entries, can be empty, a date string, or even \"next Sunday\" -->"
+    echo "::: |> today <!-- specify the date for journal entries -->"
     echo "::: <| <!-- specify the due date for to-dos, can be empty, a date string, or even \"next Sunday\" -->"
     echo "# <!-- write summary here -->"
     echo "> <!-- comma-separated list of categories -->"

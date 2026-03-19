@@ -37,7 +37,7 @@ esac
 
 if [ -z "${next_filter:-}" ]; then
   # else [FILTER] are the next options
-  # Here, we have --add-xyz with --collection or nothign
+  # Here, we have --add-xyz with --collection or nothing
   case "${1:-}" in
   "--add-note" | "--add-task" | "--add-jour" | "--collection")
     noninteractive=1
@@ -53,27 +53,29 @@ if [ -z "${next_filter:-}" ]; then
         fi
         add_option="$1"
         shift
-        summary=${1-}
+        summary=${1:-}
         if [ -z "$summary" ]; then
           err "You did not give a summary"
           exit 1
         fi
         shift
-        if [ "$add_option" = "--add-task" ] && [ -n "${1:-}" ]; then
-          case "$1" in
-          "--"*)
-            continue
-            ;;
-          *)
-            due=$(printf "%s" "$1" | tr -dc "[:alnum:][:blank:]")
-            shift
-            if [ -z "$due" ] || ! date -d "$due" >/dev/null 2>&1; then
-              err "Invalid due date"
-              exit 1
-            fi
-            ;;
-          esac
-        fi
+	if [ -n "${1:-}" ]; then
+	  case "$1" in
+	    "--"*) continue ;;
+	    *)
+	      case "$add_option" in
+		"--add-task" | "--add-jour")
+		  dueorstartdate=$(printf "%s" "$1" | tr -dc "[:alnum:][:blank:]")
+		  shift
+		  if [ -z "$dueorstartdate" ] || ! date -d "$dueorstartdate" >/dev/null 2>&1; then
+		    err "Invalid date"
+		    exit 1
+		  fi
+		  ;;
+	      esac
+	      ;;
+	  esac
+	fi
         ;;
       "--collection")
         shift
@@ -112,10 +114,10 @@ if [ -n "${noninteractive:-}" ]; then
     __add_note "$collection" "$summary"
     ;;
   "--add-task")
-    __add_task "$collection" "$summary" "${due:-}"
+    __add_task "$collection" "$summary" "${dueorstartdate:-}"
     ;;
   "--add-jour")
-    __add_jour "$collection" "$summary"
+    __add_jour "$collection" "$summary" "${dueorstartdate:-}"
     ;;
   esac
   exit 0
