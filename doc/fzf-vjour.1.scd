@@ -7,7 +7,6 @@ fzf-vjour - fzf-based *journaling, notes, and tasks* application.
 # SYNOPSIS
 
 fzf-vjour [options...]
-
 # DESCRIPTION
 
 fzf-vjour is a fzf-based *journaling, notes, and tasks* application with CalDav support.
@@ -182,6 +181,7 @@ cat proof.tex | fzf-vjour --add-journal "Proof of Fixed-point Theorem" --collect
 
 AUTHORS
 
+Maintained  by  Ämin Baumeler <amin@indyfac.ch>, who is assisted by other open-source contributors. For more information about mako development, see https://github.com/baumea/fzf-vjour.
 
 
 SEE ALSO
