@@ -7,6 +7,7 @@ fzf-vjour - fzf-based *journaling, notes, and tasks* application.
 # SYNOPSIS
 
 fzf-vjour [options...]
+
 # DESCRIPTION
 
 fzf-vjour is a fzf-based *journaling, notes, and tasks* application with CalDav support.
@@ -167,7 +168,7 @@ Another example of a task _without_ due date is
 > research
 ```
 
-EXAMPLE
+# EXAMPLE
 
 ```
 fzf-vjour --git log
@@ -179,11 +180,11 @@ fzf-vjour --add-task "Improve code to respect timezone information" "next month"
 cat proof.tex | fzf-vjour --add-journal "Proof of Fixed-point Theorem" --collection 2
 ```
 
-AUTHORS
+# AUTHORS
 
 Maintained  by  Ämin Baumeler <amin@indyfac.ch>, who is assisted by other open-source contributors. For more information about mako development, see https://github.com/baumea/fzf-vjour.
 
 
-SEE ALSO
+# SEE ALSO
 
 fzf-vjour(5)
