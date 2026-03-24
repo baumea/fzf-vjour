@@ -78,56 +78,56 @@ Specify custom query.
 [[ *Key*
 :- *Action*
 |  _Enter_
-:] Open note/journal/task in you *$EDITOR*
+:[ Open note/journal/task in you *$EDITOR*
 |  _Ctrl+Alt+d_
-:] Delete the selected entry
+:[ Delete the selected entry
 |  _Ctrl+n_
-:] Make a new entry
+:[ Make a new entry
 |  _Ctrl+r_
-:] Refresh the view
+:[ Refresh the view
 |  _Ctrl+s_
-:] Run the synchronization command
+:[ Run the synchronization command
 |  _Ctrl+x_
-:] Toggle task completion
+:[ Toggle task completion
 |  _Alt+Up_
-:] Increase task priority
+:[ Increase task priority
 |  _Alt+Down_
-:] Decrease task priority
+:[ Decrease task priority
 |  _Ctrl+a_
-:] Open attachments view
+:[ Open attachments view
 |  _Ctrl+t_
-:] Filter by category
+:[ Filter by category
 |  _Alt+v_
-:] View base iCalendar file
+:[ View base iCalendar file
 |  _Alt+0_
-:] Default view: Journal, notes, and *open* tasks
+:[ Default view: Journal, notes, and *open* tasks
 |  _Alt+j_
-:] Display journal entries
+:[ Display journal entries
 |  _Alt+n_
-:] Display notes
+:[ Display notes
 |  _Alt+t_
-:] Display all tasks
+:[ Display all tasks
 |  _Alt+[1-9]_
-:] Display first, second, ... collection
+:[ Display first, second, ... collection
 |  _Alt+w_
-:] Toggle line-wrap in preview
+:[ Toggle line-wrap in preview
 |  _Ctrl+d_
-:] Scroll down in preview
+:[ Scroll down in preview
 |  _Ctrl+u_
-:] Scroll up in preview
+:[ Scroll up in preview
 
 In the attachment view, you may use the following keys:
 
 [[ *Key*
 :- *Action*
 |  _Enter_
-:] Open attachment
+:[ Open attachment
 |  _w_
-:] Toggle line wrap
+:[ Toggle line wrap
 |  _Ctrl+a_
-:] Add attachment
+:[ Add attachment
 |  _Ctrl+Alt+d_
-:] Delete attachment
+:[ Delete attachment
 
 # ENTRY TYPES
 
