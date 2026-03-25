@@ -22,7 +22,7 @@ Installation
 
 ### Manual
 
-Run `make` or `make install`. The default installation directory is `/usr/bin`. If you want to install it in a different directory, use `BIN_DIR` variable:
+Run `make` or `make install`. The default installation directory is `/usr/bin`. If you want to install it in a different directory use `BIN_DIR` variable:
 
 ```sh
 make BIN_DIR='~/.local/bin'
