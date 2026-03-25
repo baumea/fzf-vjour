@@ -32,6 +32,16 @@ make BIN_DIR='~/.local/bin'
 make install BIN_DIR='~/.local/bin'
 ```
 
+If you don't need man-pages use `MAN_PAGES_ENABLED=0`:
+
+```sh
+make MAN_PAGES_ENABLED=0
+
+# or
+
+make install MAN_PAGES_ENABLED=0
+```
+
 ### Requirements
 
 This is a POSIX script with inline `awk` elements.
