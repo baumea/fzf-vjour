@@ -2,7 +2,7 @@ fzf-vjour(5)
 
 # NAME
 
-fzf-vjour - config file
+fzf-vjour - config file.
 
 # DESCRIPTION
 
