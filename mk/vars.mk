@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := install
 
 SHELL ?= /usr/bin/env bash
 BASH_XPG := bash -O xpg_echo

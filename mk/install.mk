@@ -1,4 +1,4 @@
-.PHONY: install distclean
+.PHONY: install
 
 install: build man
 	install -Dm755 $(TARGET) $(BIN_DIR)
@@ -10,8 +10,3 @@ ifeq ($(MAN_PAGES_ENABLED), 1)
 else
 	@echo $(MAN_PAGES_DISABLED_MSG)
 endif
-	
-distclean:
-	@for target in $(CLEANUP_TARGETS); do \
-		rm -fv $$target; \
-	done
