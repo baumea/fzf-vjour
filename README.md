@@ -13,7 +13,7 @@ with a CalDav server, such as [Radicale](https://radicale.org/), and a synchroni
 
 Demo
 ----
-Run the script `./scripts/generate_demo.sh` to generate a demo.
+Run `make demo` to generate a demo.
 
 ![Demo screenshot](./demo/screenshot.png)
 
@@ -22,9 +22,18 @@ Installation
 
 ### Manual
 
-Run `./scripts/build.sh`, then copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
+Run `make` or `make install`. The default installation directory is `/usr/bin`. If you want to install it in a different directory, use `BIN_DIR` variable:
+
+```sh
+make BIN_DIR='~/.local/bin'
+
+# or
+
+make install BIN_DIR='~/.local/bin'
+```
 
 ### Requirements
+
 This is a POSIX script with inline `awk` elements.
 Make sure you have [fzf](https://github.com/junegunn/fzf) installed.
 I also suggest to install [batcat](https://github.com/sharkdp/bat) for colorful previews.
