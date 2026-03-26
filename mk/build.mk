@@ -1,9 +1,11 @@
 .PHONY: demo build
 
+run_sh = $(BASH_XPG) $(SCRIPTS_DIR)/$(1)
+
 $(TARGET):
-	@$(BASH_XPG) $(SCRIPTS_DIR)/build.sh
+	@$(call run_sh,build.sh)
 
 demo: $(TARGET)
-	@$(BASH_XPG) $(SCRIPTS_DIR)/generate_demo.sh
+	@$(call run_sh,generate_demo.sh)
 
 build: $(TARGET)
