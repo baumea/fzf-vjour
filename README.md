@@ -32,7 +32,7 @@ make BIN_DIR='~/.local/bin/'
 make install BIN_DIR='~/.local/bin/'
 ```
 
-If you don't need man-pages use `MAN_PAGES_ENABLED=0`:
+If you don't need man pages use `MAN_PAGES_ENABLED=0`:
 
 ```sh
 make MAN_PAGES_ENABLED=0
@@ -47,6 +47,7 @@ make install MAN_PAGES_ENABLED=0
 This is a POSIX script with inline `awk` elements.
 Make sure you have [fzf](https://github.com/junegunn/fzf) installed.
 I also suggest to install [batcat](https://github.com/sharkdp/bat) for colorful previews.
+To create man pages, you need `scdoc`.
 
 ### Arch Linux
 
