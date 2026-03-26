@@ -1,17 +1,20 @@
-# DESTDIR variable for arch makepkg
+# ARCH_PKGDIR variable for arch makepkg
 
 .PHONY: install
 
+bin_install := install -Dm755 $(TARGET) $(1)/$(TARGET)
+man_page_install := install -Dm644 $(DOC_DIR)/$(TARGET).$(1).gz $(ARCH_PKGDIR)$(MAN_DIR)/man1/$(TARGET).$(1).gz
+
 install: build man
 ifdef DESTDIR
-	install -Dm755 $(TARGET) $(DESTDIR)$(BIN_DIR)/$(TARGET)
-	install -Dm644 $(DOC_DIR)/$(TARGET).1.gz $(DESTDIR)$(MAN_DIR)/man1/$(TARGET).1.gz
-	install -Dm644 $(DOC_DIR)/$(TARGET).5.gz $(DESTDIR)$(MAN_DIR)/man5/$(TARGET).5.gz
+	$(call bin_install,$(ARCH_PKGDIR)$(BIN_DIR))
+	$(call man_page_install,1)
+	$(call man_page_install,5)
 else ifeq ($(MAN_PAGES_ENABLED), 1)
-	install -Dm755 $(TARGET) $(BIN_DIR)
-	install -Dm644 $(DOC_DIR)/$(TARGET).1.gz $(MAN_DIR)/man1
-	install -Dm644 $(DOC_DIR)/$(TARGET).5.gz $(MAN_DIR)/man5
+	$(call bin_install,$(BIN_DIR))
+	$(call man_page_install,1)
+	$(call man_page_install,5)
 else
 	@echo $(MAN_PAGES_DISABLED_MSG)
-	install -Dm755 $(TARGET) $(BIN_DIR)
+	$(call bin_install,$(BIN_DIR))
 endif
