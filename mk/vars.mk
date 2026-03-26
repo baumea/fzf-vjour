@@ -16,5 +16,3 @@ MAN_PAGES_DISABLED_MSG := Man pages disabled.
 
 SCDOC := scdoc
 SCDOC_ERROR := Error: $(SCDOC) not found.
-
-CLEANUP_TARGETS := $(TARGET) $(DOC_DIR)/$(TARGET).1.gz $(DOC_DIR)/$(TARGET).5.gz
