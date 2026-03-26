@@ -13,7 +13,7 @@ with a CalDav server, such as [Radicale](https://radicale.org/), and a synchroni
 
 Demo
 ----
-Run `make demo` to generate a demo.
+Run `./scripts/generate demo.sh` for [manual](#manual) generate a demo or for generate through [make](#make) - `make demo`.
 
 ![Demo screenshot](./demo/screenshot.png)
 
@@ -45,7 +45,7 @@ make BIN_DIR='~/.local/bin/'
 make install BIN_DIR='~/.local/bin/'
 ```
 
-For man page the default installation directory is `/usr/share/man`. If you want to install it in a different directory use `MAN_DIR` variable. If you don't need man pages use `MAN_PAGES_ENABLED=0`:
+For man page the default installation directory is `/usr/share/man`. If you want to install it in a different directory use `MAN_DIR` variable. If you don't need man pages use `MAN_PAGES_ENABLED=0` or build and install only man pages use `make man-pages`:
 
 ```sh
 make MAN_PAGES_ENABLED=0
@@ -53,6 +53,10 @@ make MAN_PAGES_ENABLED=0
 # or
 
 make install MAN_PAGES_ENABLED=0
+
+# or
+
+make man-pages
 ```
 
 ### Requirements
