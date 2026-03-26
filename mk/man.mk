@@ -1,5 +1,9 @@
 .PHONY: man man-pages check-scdoc
 
+ifneq ($(filter man check-scdoc,$(MAKECMDGOALS)),)
+$(error Target is not allowed)
+endif
+
 man_page_build = scdoc < $< > $@; gzip $@
 
 $(DOC_DIR)/%.1: $(DOC_DIR)/%.1.scd | check-scdoc
