@@ -2,8 +2,8 @@
 
 .PHONY: install
 
-bin_install := install -Dm755 $(TARGET) $(1)/$(TARGET)
-man_page_install := install -Dm644 $(DOC_DIR)/$(TARGET).$(1).gz $(ARCH_PKGDIR)$(MAN_DIR)/man1/$(TARGET).$(1).gz
+bin_install = install -Dm755 $(TARGET) $(1)/$(TARGET)
+man_page_install = install -Dm644 $(DOC_DIR)/$(TARGET).$(1).gz $(ARCH_PKGDIR)$(MAN_DIR)/man1/$(TARGET).$(1).gz
 
 install: build man
 ifdef ARCH_PKGDIR
