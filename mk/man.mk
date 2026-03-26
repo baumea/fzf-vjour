@@ -1,7 +1,7 @@
 .PHONY: man man-pages check-scdoc
 
-ifneq ($(filter man,$(MAKECMDGOALS)),)
-$(error Target 'man' is not allowed)
+ifneq ($(filter man man-pages check-scdoc,$(MAKECMDGOALS)),)
+$(error Target is not allowed)
 endif
 
 $(DOC_DIR)/%.1: $(DOC_DIR)/%.1.scd | check-scdoc
