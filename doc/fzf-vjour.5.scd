@@ -2,7 +2,7 @@ fzf-vjour(5)
 
 # NAME
 
-fzf-vjour - config file.
+fzf-vjour - config file
 
 # DESCRIPTION
 
@@ -66,7 +66,7 @@ STYLE_CATEGORY="$WHITE"
 
 By default, *fzf-vjour* sets a descriptive terminal title.
 
-This can be bypassed by specifying *SET_TERMINAL_TITLE*=_"no"_ in the configuration file.
+This can be bypassed by specifying *SET_TERMINAL_TITLE*="no" in the configuration file.
 
 # ENVIRONMENT
 
