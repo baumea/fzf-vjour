@@ -3,7 +3,7 @@
 .PHONY: install
 
 install: build man
-ifdef $(DESTDIR)
+ifdef DESTDIR
 	install -Dm755 $(TARGET) $(DESTDIR)$(BIN_DIR)/$(TARGET)
 	install -Dm644 $(DOC_DIR)/$(TARGET).1.gz $(DESTDIR)$(MAN_DIR)/man1/$(TARGET).1.gz
 	install -Dm644 $(DOC_DIR)/$(TARGET).5.gz $(DESTDIR)$(MAN_DIR)/man5/$(TARGET).5.gz
