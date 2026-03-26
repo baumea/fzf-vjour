@@ -184,7 +184,6 @@ cat proof.tex | fzf-vjour --add-journal "Proof of Fixed-point Theorem" --collect
 
 Maintained  by  Ämin Baumeler <amin@indyfac.ch>, who is assisted by other open-source contributors. For more information about mako development, see https://github.com/baumea/fzf-vjour.
 
-
 # SEE ALSO
 
 fzf-vjour(5)
