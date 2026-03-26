@@ -2,7 +2,7 @@ fzf-vjour(1)
 
 # NAME
 
-fzf-vjour - fzf-based *journaling, notes, and tasks* application.
+fzf-vjour - fzf-based *journaling, notes, and tasks* application
 
 # SYNOPSIS
 
@@ -142,7 +142,7 @@ This applications, as well as *jtx Board* (_https://jtx.techbee.at/_), distingui
 Lorem ipsum
 ```
 
-*Journal* entries are notes associated to a date (typically to _today_). An example of a journal entry is:
+*Journal* entries are notes associated to a date (typically to today). An example of a journal entry is:
 
 ```
 ::: |> today <!-- specify the date for journal entries -->
@@ -152,7 +152,7 @@ Lorem ipsum
 Lorem ipsum
 ```
 
-*Tasks* are _VTODO_ entries with an optional due date. An example of a task _with_ a due date is:
+*Tasks* are _VTODO_ entries with an optional due date. An example of a task with a due date is:
 
 ```
 ::: <| next Sunday
@@ -160,7 +160,7 @@ Lorem ipsum
 > research
 ```
 
-Another example of a task _without_ due date is
+Another example of a task without due date is
 
 ```
 ::: <|
