@@ -49,7 +49,7 @@ Read task from stdin and add it with the specified summary and optional due date
 Read journal from stdin and add it with the specified summary and optional due date.
 
 *--collection* <nr>++
-Select collection to which the note, task, or journal entry is added non-interactively. The argument <nr> is the ordinal describing the collection. It defaults to the starting value of 1.
+Select collection to which the note, task, or journal entry is added non-interactively. The argument _<nr>_ is the ordinal describing the collection. It defaults to the starting value of *1*.
 
 # FILTER
 
@@ -70,7 +70,7 @@ Show completed tasks only.
 *--open*++
 Show open tasks only.
 
-*--filter*++ <query>
+*--filter* <query>++
 Specify custom query.
 
 # KEYBOARD SHORTCUTS
