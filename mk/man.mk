@@ -1,12 +1,12 @@
 .PHONY: man man-pages check-scdoc
 
+man_page_build = scdoc < $< > $@; gzip $@
+
 $(DOC_DIR)/%.1: $(DOC_DIR)/%.1.scd | check-scdoc
-	@scdoc < $< > $@
-	@gzip $@
+	@$(call man_page_build)
 
 $(DOC_DIR)/%.5: $(DOC_DIR)/%.5.scd | check-scdoc
-	@scdoc < $< > $@
-	@gzip $@
+	@$(call man_page_build)
 
 man:
 ifeq ($(MAN_PAGES_ENABLED), 1)
