@@ -6,7 +6,7 @@ fzf-vjour - config file.
 
 # DESCRIPTION
 
-This application is configured with a file located at `$HOME/.config/fzf-vjour/config`.
+This application is configured with a file located at *$HOME/.config/fzf-vjour/config*.
 
 Example:
 
