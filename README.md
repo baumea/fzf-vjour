@@ -45,7 +45,7 @@ make BIN_DIR='~/.local/bin/'
 make install BIN_DIR='~/.local/bin/'
 ```
 
-For man page the default installation directory is `/usr/share/man`. If you want to install it in a different directory use `MAN_DIR` variable. If you don't need man pages use `MAN_PAGES_ENABLED=0` or build and install only man pages use `make man-pages`:
+For man page the default installation directory is `/usr/share/man`. If you want to install it in a different directory use `MAN_DIR` variable. If you don't need man pages use `MAN_PAGES_ENABLED=0` or only build man pages use `make man-pages`:
 
 ```sh
 make MAN_PAGES_ENABLED=0
@@ -55,6 +55,7 @@ make MAN_PAGES_ENABLED=0
 make install MAN_PAGES_ENABLED=0
 
 # or
+# build in doc/
 
 make man-pages
 ```
