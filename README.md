@@ -22,6 +22,19 @@ Installation
 
 ### Manual
 
+Run `./scripts/build.sh`, then copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
+
+For build man pages use `scdoc`:
+
+```sh
+scdoc < doc/fzf-vjour.1.scdoc > doc/fzf-vjour.1
+scdoc < doc/fzf-vjour.5.scdoc > doc/fzf-vjour.1
+```
+
+and put `fzf-vjour.1`, `fzf-vjour.5` in one of the output paths of the `man -w` command.
+
+### Make
+
 Run `make` or `make install`. The default installation directory is `/usr/bin/`. If you want to install it in a different directory use `BIN_DIR` variable:
 
 ```sh
@@ -32,7 +45,7 @@ make BIN_DIR='~/.local/bin/'
 make install BIN_DIR='~/.local/bin/'
 ```
 
-If you don't need man pages use `MAN_PAGES_ENABLED=0`:
+For man page the default installation directory is `/usr/share/man`. If you want to install it in a different directory use `MAN_DIR` variable. If you don't need man pages use `MAN_PAGES_ENABLED=0`:
 
 ```sh
 make MAN_PAGES_ENABLED=0
