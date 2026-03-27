@@ -13,7 +13,7 @@ with a CalDav server, such as [Radicale](https://radicale.org/), and a synchroni
 
 Demo
 ----
-Run `./scripts/generate demo.sh` for [manual](#manual) generate a demo or for generate through [make](#make) - `make demo`.
+Run `./scripts/generate_demo.sh` generate a demo or for generate through [make](#make) - `make demo`.
 
 ![Demo screenshot](./demo/screenshot.png)
 
