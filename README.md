@@ -65,7 +65,9 @@ make man-pages
 This is a POSIX script with inline `awk` elements.
 Make sure you have [fzf](https://github.com/junegunn/fzf) installed.
 I also suggest to install [batcat](https://github.com/sharkdp/bat) for colorful previews.
-To create man pages, you need `scdoc`.
+
+When installing via Makefile, `make` is **required**.
+To create man pages you need `scdoc`.
 
 ### Arch Linux
 
