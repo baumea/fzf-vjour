@@ -43,7 +43,8 @@ For more information about *vdirsyncer* configuration, see *vdirsyncer(1)*
 
 The entry *ROOT* specifies the root directory of your journal and note entries. This directory may contain several subfolders, called _collections_.
 
-The entry *COLLECTION_LABELS* is a _;_-delimited list, where each item specifies a subfolder and a label (see example below). In the application, the user sees the collection labels instead of the collection names. This is particularly useful, because some servers use randomly generated names.
+The entry *COLLECTION_LABELS* is a _;_-delimited list, where each item specifies
+a subfolder and a label (see example above). In the application, the user sees the collection labels instead of the collection names. This is particularly useful, because some servers use randomly generated names.
 
 Finally, a third entry *SYNC_CMD* specifies the command to be executed for synchronizing. 
 
