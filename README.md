@@ -28,7 +28,7 @@ For build man pages use `scdoc`:
 
 ```sh
 scdoc < doc/fzf-vjour.1.scdoc > doc/fzf-vjour.1
-scdoc < doc/fzf-vjour.5.scdoc > doc/fzf-vjour.1
+scdoc < doc/fzf-vjour.5.scdoc > doc/fzf-vjour.5
 ```
 
 and put `fzf-vjour.1`, `fzf-vjour.5` in one of the output paths of the `man -w` command.
@@ -55,7 +55,7 @@ make MAN_PAGES_ENABLED=0
 make install MAN_PAGES_ENABLED=0
 
 # or
-# build in doc/
+# build man-pages in doc/
 
 make man-pages
 ```
@@ -65,7 +65,6 @@ make man-pages
 This is a POSIX script with inline `awk` elements.
 Make sure you have [fzf](https://github.com/junegunn/fzf) installed.
 I also suggest to install [batcat](https://github.com/sharkdp/bat) for colorful previews.
-
 When installing via Makefile, `make` is **required**.
 To create man pages you need `scdoc`.
 
