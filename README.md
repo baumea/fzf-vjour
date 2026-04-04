@@ -13,7 +13,7 @@ with a CalDav server, such as [Radicale](https://radicale.org/), and a synchroni
 
 Demo
 ----
-Run the script `./scripts/generate_demo.sh` to generate a demo.
+Run the script `./scripts/generate_demo.sh` to generate a demo or for generate through [make](#make) - `make demo`.
 
 ![Demo screenshot](./demo/screenshot.png)
 
@@ -24,10 +24,49 @@ Installation
 
 Run `./scripts/build.sh`, then copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
 
+For build man pages use `scdoc`:
+
+```sh
+scdoc < doc/fzf-vjour.1.scdoc > doc/fzf-vjour.1
+scdoc < doc/fzf-vjour.5.scdoc > doc/fzf-vjour.5
+```
+
+and put `fzf-vjour.1`, `fzf-vjour.5` in one of the output paths of the `man -w` command.
+
+### Make
+
+Run `make` or `make install`. The default installation directory is `/usr/bin/`. If you want to install it in a different directory use `BIN_DIR` variable:
+
+```sh
+make BIN_DIR='~/.local/bin/'
+
+# or
+
+make install BIN_DIR='~/.local/bin/'
+```
+
+For man page the default installation directory is `/usr/share/man`. If you want to install it in a different directory use `MAN_DIR` variable. If you don't need man pages use `MAN_PAGES_ENABLED=0` or only build man pages use `make man-pages`:
+
+```sh
+make MAN_PAGES_ENABLED=0
+
+# or
+
+make install MAN_PAGES_ENABLED=0
+
+# or
+# build man-pages in doc/
+
+make man-pages
+```
+
 ### Requirements
+
 This is a POSIX script with inline `awk` elements.
 Make sure you have [fzf](https://github.com/junegunn/fzf) installed.
 I also suggest to install [batcat](https://github.com/sharkdp/bat) for colorful previews.
+When installing via Makefile, `make` is **required**.
+To create man pages you need `scdoc`.
 
 ### Arch Linux
 
