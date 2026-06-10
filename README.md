@@ -23,6 +23,7 @@ Installation
 ### Manual
 
 Run `./scripts/build.sh`, then copy `fzf-vjour` to your preferred location, e.g., `~/.local/bin`, and make it executable.
+The man pages can be installed by copying `./man/fzf-vjour.1.gz` to `~/.local/share/man/man1` and `./man/fzf-vjour.7.gz` to `~/.local/share/man/man7`, and by re-indexing the database using `mandb`.
 
 ### Requirements
 This is a POSIX script with inline `awk` elements.
